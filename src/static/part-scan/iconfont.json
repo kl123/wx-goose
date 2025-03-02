@@ -1,0 +1,16 @@
+{
+  "id": "",
+  "name": "",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "18267945",
+      "name": "扫码",
+      "font_class": "saoma",
+      "unicode": "e995",
+      "unicode_decimal": 59797
+    }
+  ]
+}
