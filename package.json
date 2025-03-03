@@ -50,6 +50,7 @@
     "@dcloudio/uni-mp-xhs": "3.0.0-4040520250104002",
     "@dcloudio/uni-quickapp-webview": "3.0.0-4040520250104002",
     "@dcloudio/uni-ui": "^1.5.7",
+    "axios": "^1.8.1",
     "cac": "^6.7.14",
     "pinia": "^2.3.0",
     "vue": "^3.4.21",
