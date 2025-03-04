@@ -6,12 +6,39 @@
 		</view>
 
 		<!-- 能量球显示信息 -->
-		<view class="energy-balls">
-			<view v-for="(item, index) in environmentData" :key="index" class="energy-ball" :class="item.colorClass"
-				:style="{ animationDelay: `${index * 0.2}s` }">
+		<view class="energy-balls" :style="{ transform: `rotateY(${rotateY}deg) rotateX(${rotateX}deg)` }"
+			@mousedown="startDrag" 
+			@mousemove="onDrag" 
+			@mouseup="endDrag" 
+			@mouseleave="endDrag" 
+			@touchstart="startDrag"
+			@touchmove="onDrag" 
+			@touchend="endDrag">
+			<view v-for="(item, index) in environmentData" :key="index" class="energy-ball" :class="item.colorClass":style="getBallStyle(index)"
+			 
+				>
 				<text class="label">{{ item.label }}</text>
 				<text class="value">{{ item.value }}</text>
 			</view>
+		</view>
+
+		<!-- 提示 -->
+		<view class="breathing-light">
+			<view class="light-band"></view>
+			<view class="text">{{breathText.auto}}</view>
+		</view>
+
+		<!-- 手动模式 -->
+		<view class="mode-switch">
+			<text>手动模式</text>
+			<switch :checked="isManualMode" @change="toggleMode" />
+		</view>
+
+		<!-- 设备控制按钮 -->
+		<view class="control-buttons">
+			<button type="primary" :disabled="!isManualMode" @click="toggleSprinkler">
+				{{ isSprinklerOn ? '关闭洒水器' : '启动洒水器' }}
+			</button>
 		</view>
 
 		<!-- 设置弹窗 -->
@@ -56,6 +83,92 @@
 	} from 'vue';
 	import axios from 'axios';
 
+	// 旋转角度
+	const rotateY = ref(0);
+	const rotateX = ref(0);
+	const BallrotateY = ref(0)
+
+
+	// 拖拽状态
+	const isDragging = ref(false);
+	const startX = ref(0);
+	const startY = ref(0);
+	const startRotateY = ref(0);
+	const startRotateX = ref(0);
+	const startBallRotateY = ref(0);
+	
+	// 惯性旋转状态
+	const inertiaSpeed = ref(0); // 惯性速度
+	const isInertia = ref(false); // 是否处于惯性旋转状态
+	
+	
+	
+	// 开始拖拽
+	const startDrag = (event) => {
+	  isDragging.value = true;
+	  isInertia.value = false; // 停止惯性旋转
+	  const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+	  const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+	  startX.value = clientX;
+	  startY.value = clientY;
+	  startRotateY.value = rotateY.value;
+	  startRotateX.value = rotateX.value;
+	  startBallRotateY.value = BallrotateY.value;
+	};
+	
+	// 拖拽中
+	const onDrag = (event) => {
+	  if (!isDragging.value) return;
+	  const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+	  const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+	  const deltaX = clientX - startX.value;
+	  const deltaY = clientY - startY.value;
+	
+	  // 根据鼠标移动距离调整旋转角度
+	  rotateY.value = startRotateY.value + deltaX * 0.5;
+	  rotateX.value = startRotateX.value;
+	  BallrotateY.value = startBallRotateY.value - deltaX * 0.5;
+	
+	  // 更新惯性速度
+	  inertiaSpeed.value = deltaX * 0.1;
+	};
+	
+	// 结束拖拽
+	const endDrag = () => {
+	  isDragging.value = false;
+	  if (Math.abs(inertiaSpeed.value) > 0.1) {
+	    isInertia.value = true;
+	    inertiaRotate(); // 开始惯性旋转
+	  }
+	};
+	
+	// 惯性旋转
+	const inertiaRotate = () => {
+	  if (!isInertia.value) return;
+	
+	  // 更新旋转角度
+	  rotateY.value += inertiaSpeed.value;
+	  BallrotateY.value -= inertiaSpeed.value
+	
+	  // 减速
+	  inertiaSpeed.value *= 0.95;
+	
+	  // 停止条件
+	  if (Math.abs(inertiaSpeed.value) < 0.1) {
+	    isInertia.value = false;
+	  } else {
+	    setTimeout(inertiaRotate, 1000 / 60); // 使用setTimeout模拟requestAnimationFrame
+	  }
+	};
+	// 动态计算每个球的 transform
+	const getBallStyle = (index) => {
+	  const angle = index * 120; // 每个球之间的角度差为 120 度
+	  return {
+	    transform: `rotateY(${angle}deg) translateZ(150px) rotateY(-${angle}deg) rotateY(${BallrotateY.value}deg)`
+	  };
+	};
+	
+	
 	// 环境数据
 	const environmentData = ref([{
 			label: '温度',
@@ -97,6 +210,12 @@
 		co2: 800 // CO2浓度
 	};
 
+	//手动操作提示词
+	const breathText = {
+		auto: '自动化运行中',
+		manual: '手动操作中'
+	}
+
 	// 检查阈值并更新颜色
 	const checkThresholds = (data) => {
 		environmentData.value[0].colorClass = getColorClass(data.temperature, thresholds.value.temperature);
@@ -111,6 +230,12 @@
 		}
 		return 'energy-ball-normal'; // 正常范围内显示绿色
 	};
+
+	// 手动模式状态
+	const isManualMode = ref(false);
+
+	// 洒水器状态
+	const isSprinklerOn = ref(false);
 
 
 	// 获取数据
@@ -169,15 +294,36 @@
 		// 保存后重新检查阈值
 		checkThresholds(mockData);
 	};
+
+	// 切换手动模式
+	const toggleMode = (event) => {
+		isManualMode.value = event.detail.value;
+		if (!isManualMode.value) {
+			// 切换回自动模式时，关闭洒水器
+			breathText.auto = "自动运行中"
+			isSprinklerOn.value = false;
+		} else {
+			breathText.auto = '手动'
+		}
+	};
+
+	// 切换洒水器状态
+	const toggleSprinkler = () => {
+		isSprinklerOn.value = !isSprinklerOn.value;
+		// 这里可以调用后端接口控制洒水器
+		console.log(`洒水器已${isSprinklerOn.value ? '启动' : '关闭'}`);
+	};
 </script>
 <style>
 	.container {
 		display: flex;
+		flex-direction: column;
 		justify-content: center;
 		align-items: center;
 		height: 100vh;
 		background-color: #f0f0f0;
 		position: relative;
+		perspective: 1000px;
 	}
 
 	.settings-button {
@@ -187,14 +333,48 @@
 		z-index: 10;
 	}
 
-	.energy-balls {
+
+	.mode-switch {
+		margin-top: 20px;
 		display: flex;
-		justify-content: space-around;
-		width: 80%;
+		align-items: center;
 	}
 
-	.energy-ball {
+	.mode-switch text {
+		margin-right: 10px;
+		font-size: 16px;
+	}
+
+	.energy-balls {
+		/* display: flex;
+		justify-content: space-around;
+		width: 80%;
+		margin-top: 20px; */
+
+		position: relative;
+		width: 200px;
+		height: 200px;
+		transform-style: preserve-3d;
+		/* 启用 3D 空间 */
+		transition: transform 0.1s linear;
 		display: flex;
+		justify-content: space-around;
+		/* 平滑过渡 */
+	}
+
+	/* 旋转动画 */
+	/* @keyframes rotate-ring {
+		from {
+			transform: rotateY(0deg);
+		}
+
+		to {
+			transform: rotateY(360deg);
+		}
+	} */
+
+	.energy-ball {
+		/* display: flex;
 		flex-direction: column;
 		justify-content: center;
 		align-items: center;
@@ -204,7 +384,23 @@
 		color: white;
 		font-size: 14px;
 		text-align: center;
-		animation: float 5s ease-in-out infinite;
+		animation: float 5s ease-in-out infinite; */
+
+		position: absolute;
+		width: 80px;
+		height: 80px;
+		border-radius: 50%;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		color: white;
+		font-size: 14px;
+		text-align: center;
+		box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+		transform-style: preserve-3d;
+
+		/* 阴影增强立体感 */
 	}
 
 	.energy-ball-normal {
@@ -215,7 +411,21 @@
 		background: linear-gradient(135deg, #FF5252, #FF8A80);
 	}
 
-	@keyframes float {
+	/* 设置每个球的位置 */
+	.energy-ball:nth-child(1) {
+		transform: rotateY(0deg) translateZ(150px) rotateY(0deg)
+	}
+
+	.energy-ball:nth-child(2) {
+		transform: rotateY(120deg) translateZ(150px) rotateY(-120deg);
+	}
+
+	.energy-ball:nth-child(3) {
+		transform: rotateY(240deg) translateZ(150px) rotateY(-240deg);
+	}
+
+
+	/* @keyframes float {
 
 		0%,
 		100% {
@@ -225,7 +435,23 @@
 		50% {
 			transform: translateY(-10px);
 		}
+	} */
+
+
+	.control-button {
+		background-color: #4CAF50;
+		color: white;
+		border: none;
+		border-radius: 5px;
+		padding: 10px 20px;
+		font-size: 16px;
 	}
+
+	.control-button:disabled {
+		background-color: #ccc;
+		cursor: not-allowed;
+	}
+
 
 	.label {
 		font-weight: bold;
@@ -277,5 +503,48 @@
 		padding: 10px;
 		width: 100%;
 		font-size: 16px;
+	}
+
+	/* 呼吸灯 */
+	.breathing-light {
+
+		position: relative;
+		width: 100%;
+		height: 50px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		overflow: hidden;
+	}
+
+	.light-band {
+		position: absolute;
+		border-radius: 25px;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(180deg, rgba(240, 240, 240, 0.2), rgba(62, 204, 255, 0.8), rgba(240, 240, 240, 0.2));
+		animation: breathe 3s infinite ease-in-out;
+	}
+
+	.text {
+		position: relative;
+		z-index: 1;
+		color: black;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	@keyframes breathe {
+
+		0%,
+		100% {
+			opacity: 0.2;
+			transform: scaleX(0.9);
+		}
+
+		50% {
+			opacity: 1;
+			transform: scaleX(1.1);
+		}
 	}
 </style>
