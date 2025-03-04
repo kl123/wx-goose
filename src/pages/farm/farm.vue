@@ -6,20 +6,26 @@
 		</view>
 
 		<!-- 能量球显示信息 -->
-		<view class="energy-balls" :style="{ transform: `rotateY(${rotateY}deg) rotateX(${rotateX}deg)` }"
-			@mousedown="startDrag" 
-			@mousemove="onDrag" 
-			@mouseup="endDrag" 
-			@mouseleave="endDrag" 
-			@touchstart="startDrag"
-			@touchmove="onDrag" 
-			@touchend="endDrag">
-			<view v-for="(item, index) in environmentData" :key="index" class="energy-ball" :class="item.colorClass":style="getBallStyle(index)"
-			 
-				>
-				<text class="label">{{ item.label }}</text>
-				<text class="value">{{ item.value }}</text>
-			</view>
+		 <view class="energy-balls" 
+		      :style="{ transform: `rotateY(${rotateY}deg) rotateX(${rotateX}deg)` }"
+		      @mousedown="startDrag" 
+		      @mousemove="onDrag" 
+		      @mouseup="endDrag" 
+		      @mouseleave="endDrag" 
+		      @touchstart="startDrag"
+		      @touchmove="onDrag" 
+		      @touchend="endDrag"
+		    >
+			<view 
+			        v-for="(item, index) in environmentData" 
+			        :key="index" 
+			        class="energy-ball" 
+			        :class="item.colorClass"
+			        :style="getBallStyle(index)"
+			      >
+			        <text class="label">{{ item.label }}</text>
+			        <text class="value">{{ item.value }}</text>
+			      </view>
 		</view>
 
 		<!-- 提示 -->
@@ -77,17 +83,14 @@
 </template>
 
 <script setup>
-	import {
-		ref,
-		onMounted
-	} from 'vue';
+	import { ref, onMounted, onUnmounted } from 'vue';
 	import axios from 'axios';
 
 	// 旋转角度
 	const rotateY = ref(0);
 	const rotateX = ref(0);
-	const BallrotateY = ref(0)
-
+	const BallrotateY = ref(0);
+	// rotateX.value += 50;
 
 	// 拖拽状态
 	const isDragging = ref(false);
@@ -96,79 +99,106 @@
 	const startRotateY = ref(0);
 	const startRotateX = ref(0);
 	const startBallRotateY = ref(0);
-	
+
 	// 惯性旋转状态
 	const inertiaSpeed = ref(0); // 惯性速度
 	const isInertia = ref(false); // 是否处于惯性旋转状态
-	
-	
-	
+
+	// 自动旋转
+	const isAuto = ref(true);
+	const autoSpeed = 0.1;
+	let autoRotateInterval = null; // 自动旋转的定时器
+
 	// 开始拖拽
 	const startDrag = (event) => {
-	  isDragging.value = true;
-	  isInertia.value = false; // 停止惯性旋转
-	  const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-	  const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-	  startX.value = clientX;
-	  startY.value = clientY;
-	  startRotateY.value = rotateY.value;
-	  startRotateX.value = rotateX.value;
-	  startBallRotateY.value = BallrotateY.value;
+		isAuto.value = false; // 停止自动旋转
+		clearInterval(autoRotateInterval); // 清除自动旋转定时器
+
+		isDragging.value = true;
+		isInertia.value = false; // 停止惯性旋转
+		const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+		const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+		startX.value = clientX;
+		startY.value = clientY;
+		startRotateY.value = rotateY.value;
+		startRotateX.value = rotateX.value;
+		startBallRotateY.value = BallrotateY.value;
 	};
-	
+
 	// 拖拽中
 	const onDrag = (event) => {
-	  if (!isDragging.value) return;
-	  const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-	  const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-	  const deltaX = clientX - startX.value;
-	  const deltaY = clientY - startY.value;
-	
-	  // 根据鼠标移动距离调整旋转角度
-	  rotateY.value = startRotateY.value + deltaX * 0.5;
-	  rotateX.value = startRotateX.value;
-	  BallrotateY.value = startBallRotateY.value - deltaX * 0.5;
-	
-	  // 更新惯性速度
-	  inertiaSpeed.value = deltaX * 0.1;
+		if (!isDragging.value) return;
+		const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+		const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+		const deltaX = clientX - startX.value;
+		const deltaY = clientY - startY.value;
+
+		// 根据鼠标移动距离调整旋转角度
+		rotateY.value = startRotateY.value + deltaX * 0.5;
+		rotateX.value = startRotateX.value;
+		BallrotateY.value = startBallRotateY.value - deltaX * 0.5;
+
+		// 更新惯性速度
+		inertiaSpeed.value = deltaX * 0.05;
 	};
-	
+
 	// 结束拖拽
 	const endDrag = () => {
-	  isDragging.value = false;
-	  if (Math.abs(inertiaSpeed.value) > 0.1) {
-	    isInertia.value = true;
-	    inertiaRotate(); // 开始惯性旋转
-	  }
+		isDragging.value = false;
+		if (Math.abs(inertiaSpeed.value) > 0.1) {
+			isInertia.value = true;
+			inertiaRotate(); // 开始惯性旋转
+		} else {
+			startAutoRotate(); // 如果没有惯性旋转，直接启动自动旋转
+		}
 	};
-	
+
 	// 惯性旋转
 	const inertiaRotate = () => {
-	  if (!isInertia.value) return;
-	
-	  // 更新旋转角度
-	  rotateY.value += inertiaSpeed.value;
-	  BallrotateY.value -= inertiaSpeed.value
-	
-	  // 减速
-	  inertiaSpeed.value *= 0.95;
-	
-	  // 停止条件
-	  if (Math.abs(inertiaSpeed.value) < 0.1) {
-	    isInertia.value = false;
-	  } else {
-	    setTimeout(inertiaRotate, 1000 / 60); // 使用setTimeout模拟requestAnimationFrame
-	  }
+		if (!isInertia.value) return;
+
+		// 更新旋转角度
+		rotateY.value += inertiaSpeed.value;
+		BallrotateY.value -= inertiaSpeed.value
+
+		// 减速
+		inertiaSpeed.value *= 0.95;
+
+		// 停止条件
+		if (Math.abs(inertiaSpeed.value) < 0.1) {
+			isInertia.value = false;
+			startAutoRotate(); // 惯性旋转结束后启动自动旋转
+		} else {
+			setTimeout(inertiaRotate, 1000 / 60); // 使用setTimeout模拟requestAnimationFrame
+		}
 	};
+
+	// 启动自动旋转
+	const startAutoRotate = () => {
+	  isAuto.value = true;
+	  autoRotateInterval = setInterval(() => {
+	    if (isAuto.value) {
+	      rotateY.value += autoSpeed;
+	      BallrotateY.value -= autoSpeed;
+	    }
+	  }, 1000 / 60); // 60 FPS
+	};
+	
+	// 停止自动旋转
+	const stopAutoRotate = () => {
+	  isAuto.value = false;
+	  clearInterval(autoRotateInterval);
+	};
+
 	// 动态计算每个球的 transform
 	const getBallStyle = (index) => {
-	  const angle = index * 120; // 每个球之间的角度差为 120 度
-	  return {
-	    transform: `rotateY(${angle}deg) translateZ(150px) rotateY(-${angle}deg) rotateY(${BallrotateY.value}deg)`
-	  };
+		const angle = index * 120; // 每个球之间的角度差为 120 度
+		return {
+			transform: `rotateY(${angle}deg) translateZ(130px) rotateY(-${angle}deg) rotateY(${BallrotateY.value}deg)`
+		};
 	};
-	
-	
+
+
 	// 环境数据
 	const environmentData = ref([{
 			label: '温度',
@@ -266,6 +296,10 @@
 		// 检查阈值
 		checkThresholds(mockData);
 	};
+	
+	onMounted(() => {
+	  startAutoRotate();
+	});
 
 
 	// 页面加载时开始定时获取数据
@@ -280,6 +314,10 @@
 			mockData.co2 = Math.floor(Math.random() * (1200 - 200 + 1)) + 200; // 200ppm ~ 1200ppm
 			updateMockData();
 		}, 5000); // 每5秒更新一次数据
+	});
+	
+	onUnmounted(() => {
+	  clearInterval(autoRotateInterval);
 	});
 
 	// 打开设置弹窗
@@ -362,16 +400,7 @@
 		/* 平滑过渡 */
 	}
 
-	/* 旋转动画 */
-	/* @keyframes rotate-ring {
-		from {
-			transform: rotateY(0deg);
-		}
 
-		to {
-			transform: rotateY(360deg);
-		}
-	} */
 
 	.energy-ball {
 		/* display: flex;
@@ -426,7 +455,6 @@
 
 
 	/* @keyframes float {
-
 		0%,
 		100% {
 			transform: translateY(0);
