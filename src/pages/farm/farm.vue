@@ -18,8 +18,8 @@
 
 		<!-- 提示 -->
 		<view class="breathing-light">
-<!-- 			  <view :class="['light-band', { 'manual-mode': isManualMode }]"></view> -->
-			  <view class="light-band"></view>
+			  <view :class="['light-band', { 'manual-mode': isManualMode }]"></view>
+			  <!-- <view class="light-band"></view> -->
 
 			<view class="text">{{breathText.auto}}</view>
 		</view>
@@ -508,12 +508,12 @@
 		overflow: hidden;
 	}
 	
-/* 	.breathing-light .light-band.manual-mode {
-	  background: red !important; 
+	.breathing-light .light-band.manual-mode {
+	  background: linear-gradient(180deg, rgba(240, 240, 240, 0.2), rgba(255, 89, 111, 0.8), rgba(240, 240, 240, 0.2)) !important; 
 	  animation: none;
 	  opacity: 1;
 	  transform: scaleX(1);
-	} */
+	}
 
 	.light-band {
 		position: absolute;
