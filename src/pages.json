@@ -27,6 +27,12 @@
 			}
 		},
 		{
+			"path": "pages/farm/new_file",
+			"style": {             
+				"navigationBarTitleText": "养殖管理测试"
+			}
+		},
+		{
 			"path": "pages/goods/goods",
 			"style": {
 				"navigationBarTitleText": "商品详情"

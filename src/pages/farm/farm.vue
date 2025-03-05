@@ -18,8 +18,8 @@
 
 		<!-- 提示 -->
 		<view class="breathing-light">
-			  <view :class="['light-band', { 'manual-mode': isManualMode }]"></view>
-			  <!-- <view class="light-band"></view> -->
+			<view :class="['light-band', { 'manual-mode': isManualMode }]"></view>
+			<!-- <view class="light-band"></view> -->
 
 			<view class="text">{{breathText.auto}}</view>
 		</view>
@@ -233,12 +233,12 @@
 		}
 	});
 
-	// 模拟测试数据
-	const mockData = {
-		temperature: 25, // 温度
-		humidity: 55, // 湿度
-		co2: 800 // CO2浓度
-	};
+	// // 模拟测试数据
+	// const mockData = {
+	// 	temperature: 25, // 温度
+	// 	humidity: 55, // 湿度
+	// 	co2: 800 // CO2浓度
+	// };
 
 	// 检查阈值并更新颜色
 	const checkThresholds = (data) => {
@@ -255,48 +255,48 @@
 		return 'energy-ball-normal'; // 正常范围内显示绿色
 	};
 
-	// 获取数据
-	const fetchData = async () => {
-		try {
-			const response = await axios.get('https://your-api-endpoint.com/environment-data');
-			const data = response.data;
+	// // 获取数据
+	// const fetchData = async () => {
+	// 	try {
+	// 		const response = await axios.get('https://your-api-endpoint.com/environment-data');
+	// 		const data = response.data;
 
-			// 更新数据
-			environmentData.value[0].value = `${data.temperature}°C`;
-			environmentData.value[1].value = `${data.humidity}%`;
-			environmentData.value[2].value = `${data.co2}ppm`;
+	// 		// 更新数据
+	// 		environmentData.value[0].value = `${data.temperature}°C`;
+	// 		environmentData.value[1].value = `${data.humidity}%`;
+	// 		environmentData.value[2].value = `${data.co2}ppm`;
 
-			// 检查阈值
-			checkThresholds(data);
-		} catch (error) {
-			console.error('Error fetching environment data:', error);
-		}
-	};
+	// 		// 检查阈值
+	// 		checkThresholds(data);
+	// 	} catch (error) {
+	// 		console.error('Error fetching environment data:', error);
+	// 	}
+	// };
 
-	// 模拟数据更新
-	const updateMockData = () => {
-		// 更新数据
-		environmentData.value[0].value = `${mockData.temperature}°C`;
-		environmentData.value[1].value = `${mockData.humidity}%`;
-		environmentData.value[2].value = `${mockData.co2}ppm`;
+	// // 模拟数据更新
+	// const updateMockData = () => {
+	// 	// 更新数据
+	// 	environmentData.value[0].value = `${mockData.temperature}°C`;
+	// 	environmentData.value[1].value = `${mockData.humidity}%`;
+	// 	environmentData.value[2].value = `${mockData.co2}ppm`;
 
-		// 检查阈值
-		checkThresholds(mockData);
-	};
+	// 	// 检查阈值
+	// 	checkThresholds(mockData);
+	// };
 
 	// 页面加载时开始定时获取数据
-	onMounted(() => {
-		// fetchData();
-		// setInterval(fetchData, 5000); // 每5秒更新一次数据
-		updateMockData();
-		setInterval(() => {
-			// 模拟数据变化
-			mockData.temperature = Math.floor(Math.random() * (30 - 15 + 1)) + 15; // 15°C ~ 30°C
-			mockData.humidity = Math.floor(Math.random() * (70 - 30 + 1)) + 30; // 30% ~ 70%
-			mockData.co2 = Math.floor(Math.random() * (1200 - 200 + 1)) + 200; // 200ppm ~ 1200ppm
-			updateMockData();
-		}, 5000); // 每5秒更新一次数据
-	});
+	// onMounted(() => {
+	// 	// fetchData();
+	// 	// setInterval(fetchData, 5000); // 每5秒更新一次数据
+	// 	updateMockData();
+	// 	// setInterval(() => {
+	// 	// 	// 模拟数据变化
+	// 	// 	mockData.temperature = Math.floor(Math.random() * (30 - 15 + 1)) + 15; // 15°C ~ 30°C
+	// 	// 	mockData.humidity = Math.floor(Math.random() * (70 - 30 + 1)) + 30; // 30% ~ 70%
+	// 	// 	mockData.co2 = Math.floor(Math.random() * (1200 - 200 + 1)) + 200; // 200ppm ~ 1200ppm
+	// 	// 	updateMockData();
+	// 	// }, 5000); // 每5秒更新一次数据
+	// });
 
 	onUnmounted(() => {
 		clearInterval(autoRotateInterval);
@@ -320,6 +320,63 @@
 		auto: '自动化运行中',
 		manual: '手动操作中'
 	}
+
+
+
+	// 巴法云 API 配置
+	const apiUrl = 'https://apis.bemfa.com/va/getmsg';
+	const uid = '6fc94297b1a4771e713523fd16d19702'; // 用户 ID
+	const topic = 'Goose'; // 设备主题
+
+	// 定时器 ID
+	let intervalId = null;
+
+	// 获取传感器数据
+	const fetchSensorData = async () => {
+		try {
+			const response = await uni.request({
+				url: apiUrl,
+				method: 'GET',
+				data: {
+					uid: uid,
+					topic: topic,
+					type: 1, // 请求类型
+
+				},
+			});
+
+			if (response.statusCode === 200) {
+				const result = response.data;
+				const msgDict = JSON.parse(result.data[0].msg);
+
+				environmentData.value[0].value = `${msgDict.temperature}°C`;
+				environmentData.value[1].value = `${msgDict.humidity}%`;
+				environmentData.value[2].value = `${msgDict.light_intensity}ppm`;
+
+				// 检查阈值
+				checkThresholds(msgDict);
+				console.log('传感器数据:', msgDict);
+			} else {
+				console.error('请求失败:', response.statusCode, response.data);
+			}
+		} catch (error) {
+			console.error('请求出错:', error);
+		}
+	};
+
+	// 组件挂载时启动定时器
+	onMounted(() => {
+		fetchSensorData(); // 立即请求一次数据
+		intervalId = setInterval(fetchSensorData, 5000); // 每秒请求一次
+	});
+
+	// 组件卸载时清除定时器
+	onUnmounted(() => {
+		if (intervalId) {
+			clearInterval(intervalId);
+		}
+	});
+
 
 	// 手动模式状态
 	const isManualMode = ref(false);
@@ -357,7 +414,7 @@
 		position: relative;
 		perspective: 1000px;
 	}
-	
+
 	/* 设置阙值按钮 */
 	.settings-button {
 		position: absolute;
@@ -429,7 +486,7 @@
 	.energy-ball:nth-child(3) {
 		transform: rotateY(240deg) translateZ(150px) rotateY(-240deg);
 	}
-	
+
 	/* 硬件的开关 */
 	.control-button {
 		background-color: #4CAF50;
@@ -439,7 +496,7 @@
 		padding: 10px 20px;
 		font-size: 16px;
 	}
-	
+
 	.control-button:disabled {
 		background-color: #ccc;
 		cursor: not-allowed;
@@ -453,6 +510,7 @@
 	.value {
 		margin-top: 5px;
 	}
+
 	.settings-popup {
 		padding: 20px;
 		background-color: white;
@@ -507,12 +565,12 @@
 		align-items: center;
 		overflow: hidden;
 	}
-	
+
 	.breathing-light .light-band.manual-mode {
-	  background: linear-gradient(180deg, rgba(240, 240, 240, 0.2), rgba(255, 89, 111, 0.8), rgba(240, 240, 240, 0.2)) !important; 
-	  animation: none;
-	  opacity: 1;
-	  transform: scaleX(1);
+		background: linear-gradient(180deg, rgba(240, 240, 240, 0.2), rgba(255, 89, 111, 0.8), rgba(240, 240, 240, 0.2)) !important;
+		animation: none;
+		opacity: 1;
+		transform: scaleX(1);
 	}
 
 	.light-band {
@@ -533,7 +591,7 @@
 	}
 
 	@keyframes breathe {
-		
+
 		0%,
 		100% {
 			opacity: 0.2;
