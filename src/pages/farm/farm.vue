@@ -6,35 +6,25 @@
 		</view>
 
 		<!-- 能量球显示信息 -->
-		 <view class="energy-balls" 
-		      :style="{ transform: `rotateY(${rotateY}deg) rotateX(${rotateX}deg)` }"
-		      @mousedown="startDrag" 
-		      @mousemove="onDrag" 
-		      @mouseup="endDrag" 
-		      @mouseleave="endDrag" 
-		      @touchstart="startDrag"
-		      @touchmove="onDrag" 
-		      @touchend="endDrag"
-		    >
-			<view 
-			        v-for="(item, index) in environmentData" 
-			        :key="index" 
-			        class="energy-ball" 
-			        :class="item.colorClass"
-			        :style="getBallStyle(index)"
-			      >
-			        <text class="label">{{ item.label }}</text>
-			        <text class="value">{{ item.value }}</text>
-			      </view>
+		<view class="energy-balls" :style="{ transform: `rotateY(${rotateY}deg) rotateX(${rotateX}deg)` }"
+			@mousedown="startDrag" @mousemove="onDrag" @mouseup="endDrag" @mouseleave="endDrag" @touchstart="startDrag"
+			@touchmove="onDrag" @touchend="endDrag">
+			<view v-for="(item, index) in environmentData" :key="index" class="energy-ball" :class="item.colorClass"
+				:style="getBallStyle(index)">
+				<text class="label">{{ item.label }}</text>
+				<text class="value">{{ item.value }}</text>
+			</view>
 		</view>
 
 		<!-- 提示 -->
 		<view class="breathing-light">
-			<view class="light-band"></view>
+<!-- 			  <view :class="['light-band', { 'manual-mode': isManualMode }]"></view> -->
+			  <view class="light-band"></view>
+
 			<view class="text">{{breathText.auto}}</view>
 		</view>
 
-		<!-- 手动模式 -->
+		<!-- 手动模式开关 -->
 		<view class="mode-switch">
 			<text>手动模式</text>
 			<switch :checked="isManualMode" @change="toggleMode" />
@@ -83,14 +73,18 @@
 </template>
 
 <script setup>
-	import { ref, onMounted, onUnmounted } from 'vue';
+	import {
+		ref,
+		onMounted,
+		onUnmounted
+	} from 'vue';
 	import axios from 'axios';
 
+	// 环境球3d旋转
 	// 旋转角度
 	const rotateY = ref(0);
 	const rotateX = ref(0);
 	const BallrotateY = ref(0);
-	// rotateX.value += 50;
 
 	// 拖拽状态
 	const isDragging = ref(false);
@@ -175,19 +169,19 @@
 
 	// 启动自动旋转
 	const startAutoRotate = () => {
-	  isAuto.value = true;
-	  autoRotateInterval = setInterval(() => {
-	    if (isAuto.value) {
-	      rotateY.value += autoSpeed;
-	      BallrotateY.value -= autoSpeed;
-	    }
-	  }, 1000 / 60); // 60 FPS
+		isAuto.value = true;
+		autoRotateInterval = setInterval(() => {
+			if (isAuto.value) {
+				rotateY.value += autoSpeed;
+				BallrotateY.value -= autoSpeed;
+			}
+		}, 1000 / 60); // 60 FPS
 	};
-	
+
 	// 停止自动旋转
 	const stopAutoRotate = () => {
-	  isAuto.value = false;
-	  clearInterval(autoRotateInterval);
+		isAuto.value = false;
+		clearInterval(autoRotateInterval);
 	};
 
 	// 动态计算每个球的 transform
@@ -198,7 +192,13 @@
 		};
 	};
 
+	// 在程序开始时启动自动旋转
+	onMounted(() => {
+		startAutoRotate();
+	});
 
+
+	// 环境球内容部分
 	// 环境数据
 	const environmentData = ref([{
 			label: '温度',
@@ -240,12 +240,6 @@
 		co2: 800 // CO2浓度
 	};
 
-	//手动操作提示词
-	const breathText = {
-		auto: '自动化运行中',
-		manual: '手动操作中'
-	}
-
 	// 检查阈值并更新颜色
 	const checkThresholds = (data) => {
 		environmentData.value[0].colorClass = getColorClass(data.temperature, thresholds.value.temperature);
@@ -260,13 +254,6 @@
 		}
 		return 'energy-ball-normal'; // 正常范围内显示绿色
 	};
-
-	// 手动模式状态
-	const isManualMode = ref(false);
-
-	// 洒水器状态
-	const isSprinklerOn = ref(false);
-
 
 	// 获取数据
 	const fetchData = async () => {
@@ -296,11 +283,6 @@
 		// 检查阈值
 		checkThresholds(mockData);
 	};
-	
-	onMounted(() => {
-	  startAutoRotate();
-	});
-
 
 	// 页面加载时开始定时获取数据
 	onMounted(() => {
@@ -315,9 +297,9 @@
 			updateMockData();
 		}, 5000); // 每5秒更新一次数据
 	});
-	
+
 	onUnmounted(() => {
-	  clearInterval(autoRotateInterval);
+		clearInterval(autoRotateInterval);
 	});
 
 	// 打开设置弹窗
@@ -332,6 +314,18 @@
 		// 保存后重新检查阈值
 		checkThresholds(mockData);
 	};
+
+	//手动操作提示词
+	const breathText = {
+		auto: '自动化运行中',
+		manual: '手动操作中'
+	}
+
+	// 手动模式状态
+	const isManualMode = ref(false);
+
+	// 洒水器状态
+	const isSprinklerOn = ref(false);
 
 	// 切换手动模式
 	const toggleMode = (event) => {
@@ -363,7 +357,8 @@
 		position: relative;
 		perspective: 1000px;
 	}
-
+	
+	/* 设置阙值按钮 */
 	.settings-button {
 		position: absolute;
 		top: 20px;
@@ -371,24 +366,21 @@
 		z-index: 10;
 	}
 
-
+	/* 手动模式开关 */
 	.mode-switch {
 		margin-top: 20px;
 		display: flex;
 		align-items: center;
 	}
 
+	/* 手动模式开关文本 */
 	.mode-switch text {
 		margin-right: 10px;
 		font-size: 16px;
 	}
 
+	/* 环境球的星环容器 */
 	.energy-balls {
-		/* display: flex;
-		justify-content: space-around;
-		width: 80%;
-		margin-top: 20px; */
-
 		position: relative;
 		width: 200px;
 		height: 200px;
@@ -400,21 +392,7 @@
 		/* 平滑过渡 */
 	}
 
-
-
 	.energy-ball {
-		/* display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		width: 100px;
-		height: 100px;
-		border-radius: 50%;
-		color: white;
-		font-size: 14px;
-		text-align: center;
-		animation: float 5s ease-in-out infinite; */
-
 		position: absolute;
 		width: 80px;
 		height: 80px;
@@ -428,7 +406,6 @@
 		text-align: center;
 		box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
 		transform-style: preserve-3d;
-
 		/* 阴影增强立体感 */
 	}
 
@@ -452,20 +429,8 @@
 	.energy-ball:nth-child(3) {
 		transform: rotateY(240deg) translateZ(150px) rotateY(-240deg);
 	}
-
-
-	/* @keyframes float {
-		0%,
-		100% {
-			transform: translateY(0);
-		}
-
-		50% {
-			transform: translateY(-10px);
-		}
-	} */
-
-
+	
+	/* 硬件的开关 */
 	.control-button {
 		background-color: #4CAF50;
 		color: white;
@@ -474,7 +439,7 @@
 		padding: 10px 20px;
 		font-size: 16px;
 	}
-
+	
 	.control-button:disabled {
 		background-color: #ccc;
 		cursor: not-allowed;
@@ -488,7 +453,6 @@
 	.value {
 		margin-top: 5px;
 	}
-
 	.settings-popup {
 		padding: 20px;
 		background-color: white;
@@ -535,7 +499,6 @@
 
 	/* 呼吸灯 */
 	.breathing-light {
-
 		position: relative;
 		width: 100%;
 		height: 50px;
@@ -544,6 +507,13 @@
 		align-items: center;
 		overflow: hidden;
 	}
+	
+/* 	.breathing-light .light-band.manual-mode {
+	  background: red !important; 
+	  animation: none;
+	  opacity: 1;
+	  transform: scaleX(1);
+	} */
 
 	.light-band {
 		position: absolute;
@@ -563,7 +533,7 @@
 	}
 
 	@keyframes breathe {
-
+		
 		0%,
 		100% {
 			opacity: 0.2;
