@@ -1,74 +1,119 @@
 <template>
 	<view class="container">
-		<text>传感器数据: {{ sensorData }}</text>
-		<button @click="fetchSensorData">获取数据</button>
+		<view class="status">当前状态：{{ deviceStatus }}</view>
+		<view class="data-box">
+			<text>接收到的数据：{{ receivedData }}</text>
+		</view>
 	</view>
 </template>
 
 <script setup>
-	import { ref, onMounted, onUnmounted } from 'vue';
+	import {
+		ref,
+		onMounted,
+		onUnmounted
+	} from 'vue'
+	import mqtt from 'mqtt/dist/mqtt.js' // 必须引入dist目录下的文件
 
-	const sensorData = ref('');
-
-	// 巴法云 API 配置
-	const apiUrl = 'https://apis.bemfa.com/va/getmsg';
-	const uid = '6fc94297b1a4771e713523fd16d19702'; // 替换为你的用户 ID
-	const topic = 'Goose'; // 替换为你的设备主题
-	
-	// 定时器 ID
-	let intervalId = null;
-
-	// 获取传感器数据
-	const fetchSensorData = async () => {
-		try {
-			const response = await uni.request({
-				url: apiUrl,
-				method: 'GET',
-				data: {
-					uid: uid,
-					topic: topic,
-					type: 1, // 请求类型
-					
-				},
-			});
-
-			if (response.statusCode === 200) {
-				const result = response.data;
-				const msgDict = JSON.parse(result.data[0].msg);
-				sensorData.value = msgDict.temperature; // 假设返回的数据是字符串
-				console.log('传感器数据:', sensorData.value);
-			} else {
-				console.error('请求失败:', response.statusCode, response.data);
-			}
-		} catch (error) {
-			console.error('请求出错:', error);
-		}
-	};
-	
-	// 组件挂载时启动定时器
-	onMounted(() => {
-	  fetchSensorData(); // 立即请求一次数据
-	  intervalId = setInterval(fetchSensorData, 5000); // 每秒请求一次
-	});
-	
-	// 组件卸载时清除定时器
-	onUnmounted(() => {
-	  if (intervalId) {
-	    clearInterval(intervalId);
-	  }
-	});
-	
-	// 解析msg字符串为对象
-	const parseMsg = (msgStr) => {
-	  return JSON.parse(msgStr);
+	// 巴法云配置（需替换为实际参数）
+	const config = {
+		url: 'wxs://bemfa.com:9504/wss', // 微信小程序必须用wx协议头
+		options: {
+			clientId: '6fc94297b1a4771e713523fd16d19702', // 从巴法云控制台获取
+			keepalive: 60, // 心跳间隔
+			clean: true,
+			protocolVersion: 4,
+		},
+		topic: 'Goose' // 订阅的主题名
 	}
-	
 
+	// 响应式数据
+	const deviceStatus = ref('连接中...')
+	const receivedData = ref('暂无数据')
+	let client = ref(null)
+	let reconnectTimer = ref(null)
+
+	// 生命周期
+	onMounted(() => {
+		initMQTT()
+	})
+
+	onUnmounted(() => {
+		disconnectMQTT()
+	})
+
+	// MQTT初始化
+	const initMQTT = () => {
+		client.value = mqtt.connect(config.url, config.options)
+
+		// 连接成功
+		client.value.on('connect', () => {
+			deviceStatus.value = '已连接'
+			client.value.subscribe(config.topic, {
+				qos: 1
+			}, (err) => {
+				if (!err) console.log('订阅成功')
+			})
+		})
+
+		// 接收消息
+		client.value.on('message', (topic, message) => {
+
+			// receivedData.value = message.toString()
+			// console.log('收到数据:', receivedData.value)
+			const result = JSON.parse(message);
+			receivedData.value = result.temperature;
+
+			console.log('Temperature:', receivedData.value.toString());
+
+		})
+
+		// 错误处理
+		client.value.on('error', (err) => {
+			deviceStatus.value = '连接异常'
+			console.error('MQTT错误:', err)
+			handleReconnect()
+		})
+	}
+
+	// 断线重连
+	const handleReconnect = () => {
+		if (!reconnectTimer.value) {
+			reconnectTimer.value = setInterval(() => {
+				if (!client.value.connected) {
+					deviceStatus.value = '尝试重连...'
+					initMQTT()
+				}
+			}, 5000)
+		}
+	}
+
+	// 断开连接
+	const disconnectMQTT = () => {
+		if (client.value) {
+			client.value.end()
+			client.value = null
+		}
+		if (reconnectTimer.value) {
+			clearInterval(reconnectTimer.value)
+			reconnectTimer.value = null
+		}
+	}
 </script>
 
 <style>
 	.container {
-		padding: 20px;
-		text-align: center;
+		padding: 20rpx;
+	}
+
+	.status {
+		color: #666;
+		margin-bottom: 30rpx;
+	}
+
+	.data-box {
+		background: #f5f5f5;
+		padding: 20rpx;
+		border-radius: 10rpx;
 	}
 </style>

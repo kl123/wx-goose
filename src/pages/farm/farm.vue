@@ -5,6 +5,11 @@
 			<uni-icons type="gear" size="24" color="#333"></uni-icons>
 		</view>
 
+		<!-- // 连接状态 -->
+
+		<view class="status">当前状态：{{ deviceStatus }}</view>
+
+
 		<!-- 能量球显示信息 -->
 		<view class="energy-balls" :style="{ transform: `rotateY(${rotateY}deg) rotateX(${rotateX}deg)` }"
 			@mousedown="startDrag" @mousemove="onDrag" @mouseup="endDrag" @mouseleave="endDrag" @touchstart="startDrag"
@@ -79,6 +84,7 @@
 		onUnmounted
 	} from 'vue';
 	import axios from 'axios';
+	import mqtt from 'mqtt/dist/mqtt.js' // 必须引入dist目录下的文件
 
 	// 环境球3d旋转
 	// 旋转角度
@@ -211,7 +217,7 @@
 			colorClass: 'energy-ball-normal'
 		},
 		{
-			label: 'CO2浓度',
+			label: '光照强度',
 			value: '--',
 			colorClass: 'energy-ball-normal'
 		}
@@ -321,61 +327,90 @@
 		manual: '手动操作中'
 	}
 
+	// 巴法云配置（需替换为实际参数）
+	const config = {
+		url: 'wxs://bemfa.com:9504/wss', // 微信小程序必须用wx协议头
+		options: {
+			clientId: '6fc94297b1a4771e713523fd16d19702', // 从巴法云控制台获取
+			keepalive: 60, // 心跳间隔
+			clean: true,
+			protocolVersion: 4,
+		},
+		topic: 'Goose' // 订阅的主题名
+	}
 
+	// 响应式数据
+	const deviceStatus = ref('连接中...')
 
-	// 巴法云 API 配置
-	const apiUrl = 'https://apis.bemfa.com/va/getmsg';
-	const uid = '6fc94297b1a4771e713523fd16d19702'; // 用户 ID
-	const topic = 'Goose'; // 设备主题
+	let client = ref(null)
+	let reconnectTimer = ref(null)
 
-	// 定时器 ID
-	let intervalId = null;
-
-	// 获取传感器数据
-	const fetchSensorData = async () => {
-		try {
-			const response = await uni.request({
-				url: apiUrl,
-				method: 'GET',
-				data: {
-					uid: uid,
-					topic: topic,
-					type: 1, // 请求类型
-
-				},
-			});
-
-			if (response.statusCode === 200) {
-				const result = response.data;
-				const msgDict = JSON.parse(result.data[0].msg);
-
-				environmentData.value[0].value = `${msgDict.temperature}°C`;
-				environmentData.value[1].value = `${msgDict.humidity}%`;
-				environmentData.value[2].value = `${msgDict.light_intensity}ppm`;
-
-				// 检查阈值
-				checkThresholds(msgDict);
-				console.log('传感器数据:', msgDict);
-			} else {
-				console.error('请求失败:', response.statusCode, response.data);
-			}
-		} catch (error) {
-			console.error('请求出错:', error);
-		}
-	};
-
-	// 组件挂载时启动定时器
+	// 生命周期
 	onMounted(() => {
-		fetchSensorData(); // 立即请求一次数据
-		intervalId = setInterval(fetchSensorData, 5000); // 每秒请求一次
-	});
+		initMQTT()
+	})
 
-	// 组件卸载时清除定时器
 	onUnmounted(() => {
-		if (intervalId) {
-			clearInterval(intervalId);
+		disconnectMQTT()
+	})
+
+	// MQTT初始化
+	const initMQTT = () => {
+		client.value = mqtt.connect(config.url, config.options)
+
+		// 连接成功
+		client.value.on('connect', () => {
+			deviceStatus.value = '已连接'
+			client.value.subscribe(config.topic, {
+				qos: 1
+			}, (err) => {
+				if (!err) console.log('订阅成功')
+			})
+		})
+
+		// 接收消息
+		client.value.on('message', (topic, message) => {
+			const result = JSON.parse(message);
+			environmentData.value[0].value = `${result.temperature}°C`;
+			environmentData.value[1].value = `${result.humidity}%`;
+			environmentData.value[2].value = `${result.light_intensity}lx`;
+			checkThresholds(result);
+			// console.log('收到数据:', result.value)
+		})
+
+		// 错误处理
+		client.value.on('error', (err) => {
+			deviceStatus.value = '连接异常'
+			console.error('MQTT错误:', err)
+			handleReconnect()
+		})
+	}
+
+	// 断线重连
+	const handleReconnect = () => {
+		if (!reconnectTimer.value) {
+			reconnectTimer.value = setInterval(() => {
+				if (!client.value.connected) {
+					deviceStatus.value = '尝试重连...'
+					initMQTT()
+				}
+			}, 5000)
 		}
-	});
+	}
+
+	// 断开连接
+	const disconnectMQTT = () => {
+		if (client.value) {
+			client.value.end()
+			client.value = null
+		}
+		if (reconnectTimer.value) {
+			clearInterval(reconnectTimer.value)
+			reconnectTimer.value = null
+		}
+	}
+
+
 
 
 	// 手动模式状态
@@ -422,6 +457,14 @@
 		left: 20px;
 		z-index: 10;
 	}
+
+	.status {
+		color: #666;
+		position: absolute;
+		top: 20px;
+		z-index: 10;
+	}
+
 
 	/* 手动模式开关 */
 	.mode-switch {
