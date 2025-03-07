@@ -5,10 +5,11 @@
 			<uni-icons type="gear" size="24" color="#333"></uni-icons>
 		</view>
 
-		<!-- // 连接状态 -->
-
+		<!-- 连接状态 -->
 		<view class="status">当前状态：{{ deviceStatus }}</view>
-
+		
+		<!-- 数据更新时间 -->
+		<!-- <view class="update-time">{{ updateTime }}</view> -->
 
 		<!-- 能量球显示信息 -->
 		<view class="energy-balls" :style="{ transform: `rotateY(${rotateY}deg) rotateX(${rotateX}deg)` }"
@@ -24,8 +25,6 @@
 		<!-- 提示 -->
 		<view class="breathing-light">
 			<view :class="['light-band', { 'manual-mode': isManualMode }]"></view>
-			<!-- <view class="light-band"></view> -->
-
 			<view class="text">{{breathText.auto}}</view>
 		</view>
 
@@ -192,7 +191,7 @@
 
 	// 动态计算每个球的 transform
 	const getBallStyle = (index) => {
-		const angle = index * 120; // 每个球之间的角度差为 120 度
+		const angle = index * 72; // 每个球之间的角度差为 72 度
 		return {
 			transform: `rotateY(${angle}deg) translateZ(130px) rotateY(-${angle}deg) rotateY(${BallrotateY.value}deg)`
 		};
@@ -218,6 +217,16 @@
 		},
 		{
 			label: '光照强度',
+			value: '--',
+			colorClass: 'energy-ball-normal'
+		},
+		{
+			label: '氨气浓度',
+			value: '--',
+			colorClass: 'energy-ball-normal'
+		},
+		{
+			label: 'CO2浓度',
 			value: '--',
 			colorClass: 'energy-ball-normal'
 		}
@@ -341,7 +350,7 @@
 
 	// 响应式数据
 	const deviceStatus = ref('连接中...')
-
+	const updateTime = ref('从未更新') // 新增：用于记录数据更新时间
 	let client = ref(null)
 	let reconnectTimer = ref(null)
 
@@ -374,6 +383,7 @@
 			environmentData.value[0].value = `${result.temperature}°C`;
 			environmentData.value[1].value = `${result.humidity}%`;
 			environmentData.value[2].value = `${result.light_intensity}lx`;
+			// updateTime.value = new Date().toLocaleString()
 			checkThresholds(result);
 			// console.log('收到数据:', result.value)
 		})
@@ -523,11 +533,19 @@
 	}
 
 	.energy-ball:nth-child(2) {
-		transform: rotateY(120deg) translateZ(150px) rotateY(-120deg);
+		transform: rotateY(172deg) translateZ(150px) rotateY(-172deg);
 	}
 
 	.energy-ball:nth-child(3) {
-		transform: rotateY(240deg) translateZ(150px) rotateY(-240deg);
+		transform: rotateY(144deg) translateZ(150px) rotateY(-144deg);
+	}
+	
+	.energy-ball:nth-child(4) {
+		transform: rotateY(216deg) translateZ(150px) rotateY(-216deg);
+	}
+	
+	.energy-ball:nth-child(5) {
+		transform: rotateY(288deg) translateZ(150px) rotateY(-288deg);
 	}
 
 	/* 硬件的开关 */
