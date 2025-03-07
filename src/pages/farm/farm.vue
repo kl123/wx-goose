@@ -23,24 +23,47 @@
 		</view>
 
 		<!-- 提示 -->
-		<view class="breathing-light">
+		<!-- <view class="breathing-light">
 			<view :class="['light-band', { 'manual-mode': isManualMode }]"></view>
 			<view class="text">{{breathText.auto}}</view>
-		</view>
+		</view> -->
 
 		<!-- 手动模式开关 -->
-		<view class="mode-switch">
+		<!-- <view class="mode-switch">
 			<text>手动模式</text>
 			<switch :checked="isManualMode" @change="toggleMode" />
-		</view>
+		</view> -->
+		
 
 		<!-- 设备控制按钮 -->
-		<view class="control-buttons">
+		<!-- <view class="control-buttons">
 			<button type="primary" :disabled="!isManualMode" @click="toggleSprinkler">
 				{{ isSprinklerOn ? '关闭洒水器' : '启动洒水器' }}
 			</button>
+		</view> -->
+		
+		<!-- 操作模块列表 -->
+		<view class="module-group">
+			<view v-for="(item, index) in modules" :key="item.title" class="module-item"
+			:style="[backgroundStyles[index], { transitionDelay: `${index * 50}ms` }]"
+			:class="{ 'slide-out': isAnimating }" @click="startAnimation">
+			<view class="module-left">
+				<view class="icon-placeholder"></view>
+				<view class="icon-placeholder"></view>
+			</view>
+			<text class="module-title">{{ item.title }}</text>
+			<view v-if="item.type === 'arrow'" class="arrow-right">→</view>
+			<switch v-if="item.type === 'switch'" :checked="item.value" />
+			</view>
 		</view>
-
+		
+		
+		<!-- 操作按钮组 -->
+		<view class="action-group" :class="{ 'slide-in': showActions }">
+			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
+			<button class="confirm-btn" @click="handleConfirm">确认操作</button>
+		</view>
+		
 		<!-- 设置弹窗 -->
 		<uni-popup ref="popup" type="dialog">
 			<view class="settings-popup">
@@ -80,6 +103,7 @@
 	import {
 		ref,
 		onMounted,
+		computed,
 		onUnmounted
 	} from 'vue';
 	import axios from 'axios';
@@ -447,12 +471,78 @@
 		// 这里可以调用后端接口控制洒水器
 		console.log(`洒水器已${isSprinklerOn.value ? '启动' : '关闭'}`);
 	};
+	
+	const modules = ref([
+		{
+			title: '智能监控模式',
+			type: 'switch',
+			value: false
+		},
+		{
+			title: '智能除氨气',
+			type: 'arrow'
+		},
+		{
+			title: '通风透气',
+			type: 'arrow'
+		},
+		{
+			title: '鹅棚保暖',
+			type: 'arrow'
+		},
+		{
+			title: '雾化降温',
+			type: 'arrow'
+		}
+	]);
+	
+	// 新增渐变色配置
+	// 修改渐变色配置，使用完整HEX格式
+	// 更新后的渐变色配置
+	const colorGradients = [
+		[ '#C8E6C9','#E8F5E9'], // 薄荷绿+嫩芽绿
+		[ '#BBDEFB','#E3F2FD'], // 天空蓝+浅灰蓝
+		[ '#FFECB3','#FFF8E1'], // 日光黄+香槟金
+		[ '#E1BEE7','#F3E5F5'], // 浅藕荷+淡紫
+		[ '#B2DFDB','#E0F2F1'] // 灰绿+水绿色
+	];
+	
+	
+	
+	// 计算渐变背景样式
+	const backgroundStyles = computed(() =>
+		modules.value.map((_, index) => ({
+			background: `linear-gradient(135deg, 
+	        ${colorGradients[index][0]} 20%, 
+	        ${colorGradients[index][1]} 80%)`,
+			boxShadow: `0 4rpx 12rpx ${colorGradients[index][1]}20`
+		}))
+	);
+	
+	const isAnimating = ref(false);
+	const showActions = ref(false);
+	
+	const startAnimation = () => {
+		if (isAnimating.value) return;
+		isAnimating.value = true;
+	
+		// 按钮延迟出现
+		setTimeout(() => {
+			showActions.value = true;
+		}, modules.value.length * 50 + 200);
+	};
+	
+	const resetAnimation = () => {
+		isAnimating.value = false;
+		showActions.value = false;
+	};
+	
 </script>
-<style>
+<style lang="scss">
 	.container {
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
+		
 		align-items: center;
 		height: 100vh;
 		background-color: #f0f0f0;
@@ -491,6 +581,7 @@
 
 	/* 环境球的星环容器 */
 	.energy-balls {
+		margin-top: 150px;
 		position: relative;
 		width: 200px;
 		height: 200px;
@@ -515,6 +606,7 @@
 		font-size: 14px;
 		text-align: center;
 		box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+		
 		transform-style: preserve-3d;
 		/* 阴影增强立体感 */
 	}
@@ -664,4 +756,98 @@
 			transform: scaleX(1.1);
 		}
 	}
+	
+	/* //手动功能 */
+	.module-group{
+		position: fixed;
+				bottom: 24rpx;
+				left: 24rpx;
+				right: 24rpx;
+	}
+	
+	.module-item {
+		transform: translateY(0);
+		display: flex;
+		align-items: center;
+		padding: 32rpx;
+		margin-bottom: 24rpx;
+		border-radius: 12rpx;
+		transition: all 0.4s ease-in-out, background 0.3s ease;
+		backdrop-filter: none;
+		border: 1rpx solid rgba(255, 255, 255, 0.2);
+		opacity: 1;
+	
+		&:active {
+			transform: scale(0.98) translateY(2rpx);
+		}
+	
+		&.slide-out {
+			opacity: 0;
+			transform: translateY(-100%);
+			pointer-events: none;
+		}
+	
+		.module-left {
+			display: flex;
+			gap: 16rpx;
+			margin-right: 32rpx;
+	
+			.icon-placeholder {
+				width: 48rpx;
+				height: 48rpx;
+				background: #e9ecef;
+				border-radius: 8rpx;
+			}
+		}
+	
+		.module-title {
+			flex: 1;
+			color: #2E7D32; // 深墨绿色
+			font-size: 32rpx;
+			font-weight: 600;
+			text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
+		}
+	
+		.arrow-right {
+			color: rgba(0, 0, 0, 0.5);
+			font-size: 40rpx;
+		}
+	
+		/* 更新图标样式 */
+		.icon-placeholder {
+			background: rgba(129, 199, 132, 0.1); // 主色10%透明度
+			border: 1rpx solid rgba(129, 199, 132, 0.2);
+		}
+	}
+	
+	.action-group {
+		position: fixed;
+		bottom: -200rpx;
+		left: 0;
+		width: 100%;
+		padding: 40rpx;
+		background: rgba(255, 255, 255, 0.95);
+		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+	
+		&.slide-in {
+			bottom: 0;
+		}
+	
+		.back-btn {
+			position: absolute;
+			left: 32rpx;
+			top: 32rpx;
+			font-size: 36rpx;
+			color: #66BB6A
+		}
+	
+		.confirm-btn {
+			width: 60%;
+			margin: 40rpx auto 0;
+			background: #e63946;
+			color: white;
+		}
+	}
+	
+	
 </style>
