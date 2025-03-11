@@ -56,29 +56,31 @@
 				<switch v-if="item.type === 'switch'" :checked="item.value" @change="(e) => toggleMode(e, index)" />
 			</view>
 		</view>
-		
+
 
 
 		<!-- 操作按钮组 -->
-		<view class="action-group" :class="{ 'slide-in': showActions }">
+		<!-- <view class="action-group" :class="{ 'slide-in': showActions }">
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
 			<button class="confirm-btn" @click="handleConfirm">确认操作</button>
-		</view>
-		
-		<!-- <view v-for="{item,index} in choiceModudle" :key="item.title" class="action-group" :class="{'slide-in': showActions}">
-			<view class="title">
-				<text v-if="item.isOpen === true">运行中</text>
-				<text v-if="item.isOpen === false">未运行</text>
+		</view> -->
+
+		<view v-if="choiceModudle.length > 0" v-for="item in choiceModudle" :key="item.title" class="action-group"
+			:class="{'slide-in': showActions}">
+
+			<view class="ctr-title">
+				<text v-if="item.isOpen === true">{{item.title}}:运行中</text>
+				<text v-if="item.isOpen === false">{{item.title}}:未运行</text>
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
-			<button v-if="item.type === 'offon'" class="offOnBtn"></button>
-			<view v-if="item.type === 'set'" class="setNum">{{item.value}}</view>
+			<button v-if="item.type === 'offon'" class="offOnBtn">开启</button>
+			<view v-if="item.type === 'set'" class="setNum">设置温度：{{item.value}}</view>
 			<view v-if="item.type === 'set'" class="setBtn">
 				<button>升温</button>
 				<button>降温</button>
 			</view>
-		</view> -->
-		
+		</view>
+
 		<!-- <view v-if="choiceModudle"class="action-group" :class="{ 'slide-in': showActions }">WIN!</view> -->
 
 		<!-- 设置弹窗 -->
@@ -413,11 +415,11 @@
 			clean: true,
 			protocolVersion: 4,
 		},
-		topic: 'Goose' ,// 订阅的主题名
+		topic: 'Goose', // 订阅的主题名
 		settopic: 'Num'
 	}
-	
-	
+
+
 	// 响应式数据
 	const deviceStatus = ref('连接中...')
 	const updateTime = ref('从未更新') // 新增：用于记录数据更新时间
@@ -490,6 +492,35 @@
 		}
 	}
 
+	// 新增发送消息方法
+	const sendMessage = (message) => {
+		if (!client.value || !client.value.connected) {
+			deviceStatus.value = '未连接，无法发送'
+			return
+		}
+
+		const payload = {
+			// value: Math.floor(Math.random() * 100) // 示例：发送随机数
+			// 这里可以添加更多需要传输的数据字段
+			value: message
+		}
+
+		client.value.publish(
+			config.settopic,
+			JSON.stringify(payload.value), {
+				qos: 1
+			},
+			(err) => {
+				if (err) {
+					console.error('发送失败:', err)
+					deviceStatus.value = '发送失败'
+				} else {
+					deviceStatus.value = '消息已发送'
+					console.log('消息发送成功:', payload)
+				}
+			}
+		)
+	}
 
 
 
@@ -498,33 +529,33 @@
 
 	// 洒水器状态
 	const equip = ref([{
-		title: '智能除氨气',
-		isOpen: false,
-		type: 'offon'
-	},
-	{
-		title: '通风透气',
-		isOpen: false,
-		type: 'offon'
-	},
-	{
-		title: '鹅棚保暖',
-		isOpen: false,
-		value: 25,
-		type: 'set'
-	},
-	{
-		title:'雾化降温',
-		isOpen: false,
-		value: 25,
-		type: 'set'
-	}
+			title: '智能除氨气',
+			isOpen: false,
+			type: 'offon'
+		},
+		{
+			title: '通风透气',
+			isOpen: false,
+			type: 'offon'
+		},
+		{
+			title: '鹅棚保暖',
+			isOpen: false,
+			value: 25,
+			type: 'set'
+		},
+		{
+			title: '雾化降温',
+			isOpen: false,
+			value: 25,
+			type: 'set'
+		}
 	]);
 
 	// 切换手动模式
 	// Composition API 写法
 
-	
+
 	const toggleMode = (event, index) => {
 		const newValue = event.detail.value;
 		modules.value[index].value = newValue;
@@ -538,6 +569,14 @@
 		// 这里可以调用后端接口控制洒水器
 		console.log(`洒水器已${isSprinklerOn.value ? '启动' : '关闭'}`);
 	};
+
+	const handleConfirm = () => {
+		const jsonDate = {
+			"sunlimit": 250,
+			"fan": "off"
+		};
+		sendMessage(jsonDate);
+	}
 
 	const modules = ref([{
 			title: '智能监控模式',
@@ -589,8 +628,8 @@
 	const showActions = ref(false);
 
 	const selectedModuleIndex = ref(-1); //选择的模块
-	const choiceModudle = ref(-1);
-	
+	const choiceModudle = ref([]);
+
 	const startAnimation = (index) => {
 		// 阻止模式切换框的点击反应
 		selectedModuleIndex.value = index;
@@ -608,9 +647,12 @@
 		}
 
 		if (isAnimating.value) return;
-		// choiceModudle.value = equip.value.filter(item => item.title === modules.value[index].title)
-		// choiceModudle = computed(() => equip.value[index]);
+		choiceModudle.value = equip.value.filter(item => item.title === modules.value[index].title)
+		// choiceModudle.value = computed(() => equip.value[index]);
 		console.log(choiceModudle.value);
+		console.log(
+			`测试具体值：isOpen=${choiceModudle.value[0].isOpen};title=${choiceModudle.value[0].title};type=${choiceModudle.value[0].type}`
+			)
 		isAnimating.value = true;
 
 		// 按钮延迟出现
@@ -926,6 +968,8 @@
 		padding: 40rpx;
 		background: rgba(255, 255, 255, 0.95);
 		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		display: flex;
+		text-align: center;
 
 		&.slide-in {
 			left: 0;
@@ -945,5 +989,47 @@
 			background: #e63946;
 			color: white;
 		}
+
+		.ctr-title {
+			position: absolute;
+			
+			top: 36rpx;
+			left: 50%;
+		
+			transform: translateX(-50%);
+		}
+
+		.offOnBtn {
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%);
+			width: 100rpx;
+			/* 圆形尺寸 */
+			height: 100rpx;
+			border-radius: 50%;
+			/* 圆形 */
+			background: #66BB6A;
+			/* 绿色背景 */
+			z-index: 1;
+			/* 确保在其他绝对定位元素之上 */
+		}
+		
+		.setNum{
+			position: absolute;
+			left: 50%;
+			right: 50%;
+			width: 100px;
+			transform: translateY(50rpx);
+			
+		}
+		.setBtn{
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%);
+			width: 100rpx;
+		}
+		
 	}
 </style>
