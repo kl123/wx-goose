@@ -7,7 +7,7 @@
 
 		<!-- 连接状态 -->
 		<view class="status">当前状态：{{ deviceStatus }}</view>
-		
+
 		<!-- 数据更新时间 -->
 		<!-- <view class="update-time">{{ updateTime }}</view> -->
 
@@ -33,7 +33,7 @@
 			<text>手动模式</text>
 			<switch :checked="isManualMode" @change="toggleMode" />
 		</view> -->
-		
+
 
 		<!-- 设备控制按钮 -->
 		<!-- <view class="control-buttons">
@@ -41,29 +41,46 @@
 				{{ isSprinklerOn ? '关闭洒水器' : '启动洒水器' }}
 			</button>
 		</view> -->
-		
+
 		<!-- 操作模块列表 -->
 		<view class="module-group">
 			<view v-for="(item, index) in modules" :key="item.title" class="module-item"
-			:style="[backgroundStyles[index], { transitionDelay: `${index * 50}ms` }]"
-			:class="{ 'slide-out': isAnimating }" @click="startAnimation">
-			<view class="module-left">
-				<view class="icon-placeholder"></view>
-				<view class="icon-placeholder"></view>
-			</view>
-			<text class="module-title">{{ item.title }}</text>
-			<view v-if="item.type === 'arrow'" class="arrow-right">→</view>
-			<switch v-if="item.type === 'switch'" :checked="item.value" />
+				:style="[backgroundStyles[index], { transitionDelay: `${index * 50}ms` }]"
+				:class="{ 'slide-out': isAnimating }" @click="startAnimation(index)">
+				<view class="module-left">
+					<view class="icon-placeholder"></view>
+					<view class="icon-placeholder"></view>
+				</view>
+				<text class="module-title">{{ item.title }}</text>
+				<view v-if="item.type === 'arrow'" class="arrow-right">→</view>
+				<switch v-if="item.type === 'switch'" :checked="item.value" @change="(e) => toggleMode(e, index)" />
 			</view>
 		</view>
 		
-		
+
+
 		<!-- 操作按钮组 -->
 		<view class="action-group" :class="{ 'slide-in': showActions }">
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
 			<button class="confirm-btn" @click="handleConfirm">确认操作</button>
 		</view>
 		
+		<!-- <view v-for="{item,index} in choiceModudle" :key="item.title" class="action-group" :class="{'slide-in': showActions}">
+			<view class="title">
+				<text v-if="item.isOpen === true">运行中</text>
+				<text v-if="item.isOpen === false">未运行</text>
+			</view>
+			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
+			<button v-if="item.type === 'offon'" class="offOnBtn"></button>
+			<view v-if="item.type === 'set'" class="setNum">{{item.value}}</view>
+			<view v-if="item.type === 'set'" class="setBtn">
+				<button>升温</button>
+				<button>降温</button>
+			</view>
+		</view> -->
+		
+		<!-- <view v-if="choiceModudle"class="action-group" :class="{ 'slide-in': showActions }">WIN!</view> -->
+
 		<!-- 设置弹窗 -->
 		<uni-popup ref="popup" type="dialog">
 			<view class="settings-popup">
@@ -92,6 +109,23 @@
 						<uni-number-box v-model="thresholds.co2.max" :min="0" :max="2000"></uni-number-box>
 					</view>
 				</view>
+				<view class="setting-item">
+					<text>光照阈值 (lx)</text>
+					<view class="item">
+						<uni-number-box v-model="thresholds.light.min" :min="0" :max="100"></uni-number-box>
+						<text>至</text>
+						<uni-number-box v-model="thresholds.light.max" :min="0" :max="100"></uni-number-box>
+					</view>
+				</view>
+				<view class="setting-item">
+					<text>氨气阈值 (%)</text>
+					<view class="item">
+						<uni-number-box v-model="thresholds.nh3.min" :min="0" :max="100"></uni-number-box>
+						<text>至</text>
+						<uni-number-box v-model="thresholds.nh3.max" :min="0" :max="100"></uni-number-box>
+					</view>
+				</view>
+				<!-- <button class="exit-settingBut" @click="exitSetting">取消</button> -->
 				<button class="save-button" @click="saveSettings">保存</button>
 			</view>
 		</uni-popup>
@@ -269,6 +303,14 @@
 		co2: {
 			min: 300,
 			max: 1000
+		},
+		light: {
+			min: 100,
+			max: 200
+		},
+		nh3: {
+			min: 300,
+			max: 1000
 		}
 	});
 
@@ -283,7 +325,9 @@
 	const checkThresholds = (data) => {
 		environmentData.value[0].colorClass = getColorClass(data.temperature, thresholds.value.temperature);
 		environmentData.value[1].colorClass = getColorClass(data.humidity, thresholds.value.humidity);
-		environmentData.value[2].colorClass = getColorClass(data.co2, thresholds.value.co2);
+		environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.co2);
+		// environmentData.value[3].colorClass = getColorClass(data.co2, thresholds.value.co2);
+		// environmentData.value[4].colorClass = getColorClass(data.co2, thresholds.value.co2);
 	};
 
 	// 根据阈值获取颜色
@@ -369,9 +413,11 @@
 			clean: true,
 			protocolVersion: 4,
 		},
-		topic: 'Goose' // 订阅的主题名
+		topic: 'Goose' ,// 订阅的主题名
+		settopic: 'Num'
 	}
-
+	
+	
 	// 响应式数据
 	const deviceStatus = ref('连接中...')
 	const updateTime = ref('从未更新') // 新增：用于记录数据更新时间
@@ -448,21 +494,42 @@
 
 
 	// 手动模式状态
-	const isManualMode = ref(false);
+	const isAutoMode = ref(true);
 
 	// 洒水器状态
-	const isSprinklerOn = ref(false);
+	const equip = ref([{
+		title: '智能除氨气',
+		isOpen: false,
+		type: 'offon'
+	},
+	{
+		title: '通风透气',
+		isOpen: false,
+		type: 'offon'
+	},
+	{
+		title: '鹅棚保暖',
+		isOpen: false,
+		value: 25,
+		type: 'set'
+	},
+	{
+		title:'雾化降温',
+		isOpen: false,
+		value: 25,
+		type: 'set'
+	}
+	]);
 
 	// 切换手动模式
-	const toggleMode = (event) => {
-		isManualMode.value = event.detail.value;
-		if (!isManualMode.value) {
-			// 切换回自动模式时，关闭洒水器
-			breathText.auto = "自动运行中"
-			isSprinklerOn.value = false;
-		} else {
-			breathText.auto = '手动'
-		}
+	// Composition API 写法
+
+	
+	const toggleMode = (event, index) => {
+		const newValue = event.detail.value;
+		modules.value[index].value = newValue;
+		isAutoMode.value = newValue;
+
 	};
 
 	// 切换洒水器状态
@@ -471,12 +538,11 @@
 		// 这里可以调用后端接口控制洒水器
 		console.log(`洒水器已${isSprinklerOn.value ? '启动' : '关闭'}`);
 	};
-	
-	const modules = ref([
-		{
+
+	const modules = ref([{
 			title: '智能监控模式',
 			type: 'switch',
-			value: false
+			value: true
 		},
 		{
 			title: '智能除氨气',
@@ -495,20 +561,20 @@
 			type: 'arrow'
 		}
 	]);
-	
+
 	// 新增渐变色配置
 	// 修改渐变色配置，使用完整HEX格式
 	// 更新后的渐变色配置
 	const colorGradients = [
-		[ '#C8E6C9','#E8F5E9'], // 薄荷绿+嫩芽绿
-		[ '#BBDEFB','#E3F2FD'], // 天空蓝+浅灰蓝
-		[ '#FFECB3','#FFF8E1'], // 日光黄+香槟金
-		[ '#E1BEE7','#F3E5F5'], // 浅藕荷+淡紫
-		[ '#B2DFDB','#E0F2F1'] // 灰绿+水绿色
+		['#C8E6C9', '#E8F5E9'], // 薄荷绿+嫩芽绿
+		['#BBDEFB', '#E3F2FD'], // 天空蓝+浅灰蓝
+		['#FFECB3', '#FFF8E1'], // 日光黄+香槟金
+		['#E1BEE7', '#F3E5F5'], // 浅藕荷+淡紫
+		['#B2DFDB', '#E0F2F1'] // 灰绿+水绿色
 	];
-	
-	
-	
+
+
+
 	// 计算渐变背景样式
 	const backgroundStyles = computed(() =>
 		modules.value.map((_, index) => ({
@@ -518,31 +584,51 @@
 			boxShadow: `0 4rpx 12rpx ${colorGradients[index][1]}20`
 		}))
 	);
-	
+
 	const isAnimating = ref(false);
 	const showActions = ref(false);
+
+	const selectedModuleIndex = ref(-1); //选择的模块
+	const choiceModudle = ref(-1);
 	
-	const startAnimation = () => {
+	const startAnimation = (index) => {
+		// 阻止模式切换框的点击反应
+		selectedModuleIndex.value = index;
+		console.log(`点击了功能 ${index}`)
+		if (modules.value[index].type !== 'arrow') return;
+
+		// 智能模式开启时拦截其他模块点击
+		if (modules.value[0].value && index !== 0) {
+			uni.showToast({
+				title: '正在智能操控中',
+				icon: 'none',
+				duration: 1500
+			});
+			return;
+		}
+
 		if (isAnimating.value) return;
+		// choiceModudle.value = equip.value.filter(item => item.title === modules.value[index].title)
+		// choiceModudle = computed(() => equip.value[index]);
+		console.log(choiceModudle.value);
 		isAnimating.value = true;
-	
+
 		// 按钮延迟出现
 		setTimeout(() => {
 			showActions.value = true;
 		}, modules.value.length * 50 + 200);
 	};
-	
+
 	const resetAnimation = () => {
 		isAnimating.value = false;
 		showActions.value = false;
 	};
-	
 </script>
 <style lang="scss">
 	.container {
 		display: flex;
 		flex-direction: column;
-		
+
 		align-items: center;
 		height: 100vh;
 		background-color: #f0f0f0;
@@ -606,7 +692,7 @@
 		font-size: 14px;
 		text-align: center;
 		box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-		
+
 		transform-style: preserve-3d;
 		/* 阴影增强立体感 */
 	}
@@ -631,11 +717,11 @@
 	.energy-ball:nth-child(3) {
 		transform: rotateY(144deg) translateZ(150px) rotateY(-144deg);
 	}
-	
+
 	.energy-ball:nth-child(4) {
 		transform: rotateY(216deg) translateZ(150px) rotateY(-216deg);
 	}
-	
+
 	.energy-ball:nth-child(5) {
 		transform: rotateY(288deg) translateZ(150px) rotateY(-288deg);
 	}
@@ -697,6 +783,17 @@
 		font-weight: bold;
 	}
 
+	.exit-settingBut {
+		margin-top: 20px;
+		background-color: #4CAF50;
+		color: white;
+		border: none;
+		border-radius: 5px;
+		padding: 10px;
+		width: 100%;
+		font-size: 16px;
+	}
+
 	.save-button {
 		margin-top: 20px;
 		background-color: #4CAF50;
@@ -756,15 +853,15 @@
 			transform: scaleX(1.1);
 		}
 	}
-	
+
 	/* //手动功能 */
-	.module-group{
+	.module-group {
 		position: fixed;
-				bottom: 24rpx;
-				left: 24rpx;
-				right: 24rpx;
+		bottom: 12rpx;
+		left: 24rpx;
+		right: 24rpx;
 	}
-	
+
 	.module-item {
 		transform: translateY(0);
 		display: flex;
@@ -776,22 +873,22 @@
 		backdrop-filter: none;
 		border: 1rpx solid rgba(255, 255, 255, 0.2);
 		opacity: 1;
-	
+
 		&:active {
 			transform: scale(0.98) translateY(2rpx);
 		}
-	
+
 		&.slide-out {
 			opacity: 0;
-			transform: translateY(-100%);
+			transform: translateX(-100%);
 			pointer-events: none;
 		}
-	
+
 		.module-left {
 			display: flex;
 			gap: 16rpx;
 			margin-right: 32rpx;
-	
+
 			.icon-placeholder {
 				width: 48rpx;
 				height: 48rpx;
@@ -799,7 +896,7 @@
 				border-radius: 8rpx;
 			}
 		}
-	
+
 		.module-title {
 			flex: 1;
 			color: #2E7D32; // 深墨绿色
@@ -807,32 +904,33 @@
 			font-weight: 600;
 			text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
 		}
-	
+
 		.arrow-right {
 			color: rgba(0, 0, 0, 0.5);
 			font-size: 40rpx;
 		}
-	
+
 		/* 更新图标样式 */
 		.icon-placeholder {
 			background: rgba(129, 199, 132, 0.1); // 主色10%透明度
 			border: 1rpx solid rgba(129, 199, 132, 0.2);
 		}
 	}
-	
+
 	.action-group {
 		position: fixed;
-		bottom: -200rpx;
-		left: 0;
+		bottom: 0;
+		left: 100%;
+		height: 700rpx;
 		width: 100%;
 		padding: 40rpx;
 		background: rgba(255, 255, 255, 0.95);
 		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-	
+
 		&.slide-in {
-			bottom: 0;
+			left: 0;
 		}
-	
+
 		.back-btn {
 			position: absolute;
 			left: 32rpx;
@@ -840,7 +938,7 @@
 			font-size: 36rpx;
 			color: #66BB6A
 		}
-	
+
 		.confirm-btn {
 			width: 60%;
 			margin: 40rpx auto 0;
@@ -848,6 +946,4 @@
 			color: white;
 		}
 	}
-	
-	
 </style>
