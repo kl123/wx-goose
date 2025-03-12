@@ -48,8 +48,10 @@
 				:style="[backgroundStyles[index], { transitionDelay: `${index * 50}ms` }]"
 				:class="{ 'slide-out': isAnimating }" @click="startAnimation(index)">
 				<view class="module-left">
-					<view class="icon-placeholder"></view>
-					<view class="icon-placeholder"></view>
+					<view class="icon-placeholder"
+						:class="findEquipByTitle(item.title)?.isOpen ? 'greenlet' : 'redlet'"></view>
+					<view class="icon-placeholder"
+						:class="findEquipByTitle(item.title)?.isOpen ? 'bluelet' : 'graylet'"></view>
 				</view>
 				<text class="module-title">{{ item.title }}</text>
 				<view v-if="item.type === 'arrow'" class="arrow-right">→</view>
@@ -73,11 +75,11 @@
 				<text v-if="item.isOpen === false">{{item.title}}:未运行</text>
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
-			<button v-if="item.type === 'offon'" class="offOnBtn">开启</button>
+			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)">开启</button>
 			<view v-if="item.type === 'set'" class="setNum">设置温度：{{item.value}}</view>
 			<view v-if="item.type === 'set'" class="setBtn">
-				<button>升温</button>
-				<button>降温</button>
+				<button @click="upTemp(item)">升温</button>
+				<button @click="downTemp(item)">降温</button>
 			</view>
 		</view>
 
@@ -531,25 +533,40 @@
 	const equip = ref([{
 			title: '智能除氨气',
 			isOpen: false,
-			type: 'offon'
+			type: 'offon',
+			colorClass: 'redlet',
+			colorClass2: 'redlet'
 		},
 		{
 			title: '通风透气',
 			isOpen: false,
-			type: 'offon'
+			type: 'offon',
+			colorClass: 'redlet',
+			colorClass2: 'redlet'
 		},
 		{
 			title: '鹅棚保暖',
 			isOpen: false,
 			value: 25,
-			type: 'set'
+			type: 'set',
+			colorClass: 'redlet',
+			colorClass2: 'redlet'
 		},
 		{
 			title: '雾化降温',
 			isOpen: false,
 			value: 25,
-			type: 'set'
-		}
+			type: 'set',
+			colorClass: 'redlet',
+			colorClass2: 'redlet'
+		},
+		{
+			title: '智能监控模式',
+			isOpen: isAnimating,
+			type: 'no',
+			colorClass: 'redlet',
+			colorClass2: 'redlet'
+		},
 	]);
 
 	// 切换手动模式
@@ -652,7 +669,7 @@
 		console.log(choiceModudle.value);
 		console.log(
 			`测试具体值：isOpen=${choiceModudle.value[0].isOpen};title=${choiceModudle.value[0].title};type=${choiceModudle.value[0].type}`
-			)
+		)
 		isAnimating.value = true;
 
 		// 按钮延迟出现
@@ -660,6 +677,37 @@
 			showActions.value = true;
 		}, modules.value.length * 50 + 200);
 	};
+	
+	// const offOnEquip = (item) => {
+		
+	// }
+
+	const findEquipByTitle = (title) => {
+		for (const item of equip.value) {
+			if (item.title === title) {
+				return item;
+			}
+		}
+
+		return null; // 未找到时返回 null
+	}
+
+	// 检查开关并更新提示
+	// const checkisOpen = (equip) => {
+	// 	// environmentData.value[0].colorClass = getColorClass(data.temperature, thresholds.value.temperature);
+	// 	// environmentData.value[1].colorClass = getColorClass(data.humidity, thresholds.value.humidity);
+	// 	// environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.co2);
+	// 	equip.value[0].colorClass = equipGetColorClass()
+
+	// };
+
+	// 根据阈值获取颜色
+	// const equipGetColorClass = (value, threshold) => {
+	// 	if (value < threshold.min || value > threshold.max) {
+	// 		return 'energy-ball-warning'; // 超出阈值显示红色
+	// 	}
+	// 	return 'energy-ball-normal'; // 正常范围内显示绿色
+	// };
 
 	const resetAnimation = () => {
 		isAnimating.value = false;
@@ -904,6 +952,24 @@
 		right: 24rpx;
 	}
 
+	.greenlet {
+		background-color: #2E7D32;
+		background: #2E7D32;
+	}
+
+	.redlet {
+		background-color: #FF5252;
+		background: #FF5252;
+	}
+
+	.bluelet {
+		background: blue;
+	}
+
+	.graylet {
+		background: #e9ecef;
+	}
+
 	.module-item {
 		transform: translateY(0);
 		display: flex;
@@ -932,10 +998,11 @@
 			margin-right: 32rpx;
 
 			.icon-placeholder {
-				width: 48rpx;
-				height: 48rpx;
-				background: #e9ecef;
-				border-radius: 8rpx;
+				width: 25rpx;
+				height: 25rpx;
+				// background: #e9ecef;
+				// background: #2E7D32;
+				border-radius: 50%;
 			}
 		}
 
@@ -952,18 +1019,18 @@
 			font-size: 40rpx;
 		}
 
-		/* 更新图标样式 */
-		.icon-placeholder {
-			background: rgba(129, 199, 132, 0.1); // 主色10%透明度
-			border: 1rpx solid rgba(129, 199, 132, 0.2);
-		}
+		// /* 更新图标样式 */
+		// .icon-placeholder {
+		// 	background: rgba(129, 199, 132, 0.1); // 主色10%透明度
+		// 	border: 1rpx solid rgba(129, 199, 132, 0.2);
+		// }
 	}
 
 	.action-group {
 		position: fixed;
 		bottom: 0;
 		left: 100%;
-		height: 700rpx;
+		height: 650rpx;
 		width: 100%;
 		padding: 40rpx;
 		background: rgba(255, 255, 255, 0.95);
@@ -992,10 +1059,10 @@
 
 		.ctr-title {
 			position: absolute;
-			
+
 			top: 36rpx;
 			left: 50%;
-		
+
 			transform: translateX(-50%);
 		}
 
@@ -1014,22 +1081,23 @@
 			z-index: 1;
 			/* 确保在其他绝对定位元素之上 */
 		}
-		
-		.setNum{
+
+		.setNum {
 			position: absolute;
 			left: 50%;
 			right: 50%;
 			width: 100px;
 			transform: translateY(50rpx);
-			
+
 		}
-		.setBtn{
+
+		.setBtn {
 			position: absolute;
 			left: 50%;
 			top: 50%;
 			transform: translate(-50%, -50%);
 			width: 100rpx;
 		}
-		
+
 	}
 </style>
