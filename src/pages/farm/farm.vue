@@ -76,6 +76,7 @@
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
 			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)">开启</button>
+			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)">开启</button>
 			<view v-if="item.type === 'set'" class="setNum">设置温度：{{item.value}}</view>
 			<view v-if="item.type === 'set'" class="setBtn">
 				<button @click="upTemp(item)">升温</button>
@@ -418,7 +419,12 @@
 			protocolVersion: 4,
 		},
 		topic: 'Goose', // 订阅的主题名
-		settopic: 'Num'
+		fanTopic: 'Fum',
+		winTopic: 'Num',
+		tempTopic: 'Wum',
+		humTopic: 'Hum',
+		lightTopic: 'Dum'
+
 	}
 
 
@@ -495,20 +501,23 @@
 	}
 
 	// 新增发送消息方法
-	const sendMessage = (message) => {
+	const sendMessage = (sendTopic, message) => {
+		console.log(`进入了发送函数`)
 		if (!client.value || !client.value.connected) {
 			deviceStatus.value = '未连接，无法发送'
 			return
 		}
-
+		console.log(`通过了校验可以发送`)
 		const payload = {
 			// value: Math.floor(Math.random() * 100) // 示例：发送随机数
 			// 这里可以添加更多需要传输的数据字段
 			value: message
 		}
-
+		console.log(`发送的目标是：${sendTopic}`)
+		console.log(`准备的数据是${payload.value}`)
 		client.value.publish(
-			config.settopic,
+			sendTopic,
+			// config.tempTopic,
 			JSON.stringify(payload.value), {
 				qos: 1
 			},
@@ -535,14 +544,17 @@
 			isOpen: false,
 			type: 'offon',
 			colorClass: 'redlet',
-			colorClass2: 'redlet'
+			colorClass2: 'redlet',
+			topicname: config.fanTopic,
 		},
 		{
 			title: '通风透气',
 			isOpen: false,
 			type: 'offon',
 			colorClass: 'redlet',
-			colorClass2: 'redlet'
+			colorClass2: 'redlet',
+			topicname: config.winTopic,
+
 		},
 		{
 			title: '鹅棚保暖',
@@ -550,7 +562,8 @@
 			value: 25,
 			type: 'set',
 			colorClass: 'redlet',
-			colorClass2: 'redlet'
+			colorClass2: 'redlet',
+			topicname: config.tempTopic
 		},
 		{
 			title: '雾化降温',
@@ -558,7 +571,8 @@
 			value: 25,
 			type: 'set',
 			colorClass: 'redlet',
-			colorClass2: 'redlet'
+			colorClass2: 'redlet',
+			topicname: config.humTopic
 		},
 		{
 			title: '智能监控模式',
@@ -576,7 +590,7 @@
 	const toggleMode = (event, index) => {
 		const newValue = event.detail.value;
 		modules.value[index].value = newValue;
-		isAutoMode.value = newValue;
+		isAutoMode.value = newValue; 
 
 	};
 
@@ -587,12 +601,12 @@
 		console.log(`洒水器已${isSprinklerOn.value ? '启动' : '关闭'}`);
 	};
 
-	const handleConfirm = () => {
+	const handleConfirm = (myTopic) => {
 		const jsonDate = {
 			"sunlimit": 250,
 			"fan": "off"
 		};
-		sendMessage(jsonDate);
+		sendMessage(myTopic, jsonDate);
 	}
 
 	const modules = ref([{
@@ -677,10 +691,70 @@
 			showActions.value = true;
 		}, modules.value.length * 50 + 200);
 	};
-	
-	// const offOnEquip = (item) => {
+
+	const offOnEquip = (item) => {
+		// const eqindex = 0;
+		// for (const item of equip.value) {
+		// 	if (item.title === equip.value[eqindex].title) {
+		// 		break;
+		// 	}
+		// 	console.log(`for`)
+		// 	eqindex++;
+		// }
+		// equip.value[eqindex].isOpen = !equip.value[eqindex].isOpen;
+		item.isOpen = !item.isOpen;
+		if(item.type === 'set'){
+			console.log(`可以发送消息`)
+			const jsonDate = {
+				"status": item.isOpen,
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}else if(item.type === 'offon'){
+			console.log(`可以发送消息`)
+			const jsonDate = {
+				"status": item.isOpen,
+				
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
 		
-	// }
+
+		console.log(`点击了：${item.title}且index=`)
+		// console.log(`当前${item.title}开关情况为：eq:${equip.value[0].title}是${equip.value[0].isOpen},item:${item.isOpen}`)
+		// console.log(`当前${item.title}开关情况为：eq:${equip.value[1].title}是${equip.value[1].isOpen},item:${item.isOpen}`)
+
+		// const jsonDate = {
+		// 	"sunlimit": 250,
+		// 	"fan": "off"
+		// };
+		// sendMessage(myTopic,jsonDate);
+	}
+
+	const upTemp = (item) => {
+		item.value++;
+		if (item.isOpen) {
+			console.log(`可以发送消息`)
+			const jsonDate = {
+				"status": item.isOpen,
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了${item.title}的升温`)
+	}
+
+	const downTemp = (item) => {
+		item.value--;
+		if (item.isOpen) {
+			const jsonDate = {
+				"status": item.isOpen,
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了${item.title}的降温`)
+	}
 
 	const findEquipByTitle = (title) => {
 		for (const item of equip.value) {
@@ -688,7 +762,6 @@
 				return item;
 			}
 		}
-
 		return null; // 未找到时返回 null
 	}
 
@@ -712,7 +785,7 @@
 	const resetAnimation = () => {
 		isAnimating.value = false;
 		showActions.value = false;
-	};
+	}
 </script>
 <style lang="scss">
 	.container {
@@ -1071,6 +1144,20 @@
 			left: 50%;
 			top: 50%;
 			transform: translate(-50%, -50%);
+			width: 100rpx;
+			/* 圆形尺寸 */
+			height: 100rpx;
+			border-radius: 50%;
+			/* 圆形 */
+			background: #66BB6A;
+			/* 绿色背景 */
+			z-index: 1;
+			/* 确保在其他绝对定位元素之上 */
+		}
+
+		.setoffOnBtn {
+			position: absolute;
+			top: 50%;
 			width: 100rpx;
 			/* 圆形尺寸 */
 			height: 100rpx;
