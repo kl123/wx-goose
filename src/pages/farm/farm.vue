@@ -49,9 +49,9 @@
 				:class="{ 'slide-out': isAnimating }" @click="startAnimation(index)">
 				<view class="module-left">
 					<view class="icon-placeholder"
-						:class="findEquipByTitle(item.title)?.isOpen ? 'greenlet' : 'redlet'"></view>
+						:class="isAutoRun() ? 'bluelet' : 'graylet'"></view>
 					<view class="icon-placeholder"
-						:class="findEquipByTitle(item.title)?.isOpen ? 'bluelet' : 'graylet'"></view>
+						:class="findEquipByTitle(item.title)?.isOpen ? 'greenlet' : 'redlet'"></view>
 				</view>
 				<text class="module-title">{{ item.title }}</text>
 				<view v-if="item.type === 'arrow'" class="arrow-right">→</view>
@@ -77,10 +77,15 @@
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
 			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)">开启</button>
 			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)">开启</button>
-			<view v-if="item.type === 'set'" class="setNum">设置温度：{{item.value}}</view>
-			<view v-if="item.type === 'set'" class="setBtn">
+			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setNum">设置温度：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setBtn">
 				<button @click="upTemp(item)">升温</button>
 				<button @click="downTemp(item)">降温</button>
+			</view>
+			<view v-if="item.type === 'set' && item.title === '智能除氨气'" class="setNum">设置风扇挡位：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title === '智能除氨气'" class="setBtn">
+				<button @click="upGrade(item)">升档次</button>
+				<button @click="downGrade(item)">降档次</button>
 			</view>
 		</view>
 
@@ -542,7 +547,8 @@
 	const equip = ref([{
 			title: '智能除氨气',
 			isOpen: false,
-			type: 'offon',
+			type: 'set',
+			value: 1,
 			colorClass: 'redlet',
 			colorClass2: 'redlet',
 			topicname: config.fanTopic,
@@ -706,14 +712,14 @@
 		if(item.type === 'set'){
 			console.log(`可以发送消息`)
 			const jsonDate = {
-				"status": item.isOpen,
+				"status": item.isOpen ? "on" : "off",
 				"grade": item.value
 			};
 			sendMessage(item.topicname, jsonDate);
 		}else if(item.type === 'offon'){
 			console.log(`可以发送消息`)
 			const jsonDate = {
-				"status": item.isOpen,
+				"status": item.isOpen ? "on" : "off",
 				
 			};
 			sendMessage(item.topicname, jsonDate);
@@ -736,7 +742,7 @@
 		if (item.isOpen) {
 			console.log(`可以发送消息`)
 			const jsonDate = {
-				"status": item.isOpen,
+				"status": item.isOpen ? "on" : "off",
 				"grade": item.value
 			};
 			sendMessage(item.topicname, jsonDate);
@@ -748,12 +754,59 @@
 		item.value--;
 		if (item.isOpen) {
 			const jsonDate = {
-				"status": item.isOpen,
+				"status": item.isOpen ? "on" : "off",
 				"grade": item.value
 			};
 			sendMessage(item.topicname, jsonDate);
 		}
 		console.log(`点击了${item.title}的降温`)
+	}
+
+	const upGrade = (item) => {
+		if(item.value >= 4){
+			uni.showToast({
+				title: '已到最高档位',
+				icon: 'none',
+				duration: 1500
+			});
+			item.value = 4;
+			return;
+		}
+		item.value++;
+		if (item.isOpen) {
+			console.log(`可以发送消息`)
+			const jsonDate = {
+				"status": item.isOpen ? "on" : "off",
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了${item.title}的升温`)
+	}
+	
+	const downGrade = (item) => {
+		if(item.value <= 1){
+			uni.showToast({
+				title: '已到最低档位',
+				icon: 'none',
+				duration: 1500
+			});
+			item.value = 1;
+			return;
+		}
+		item.value--;
+		if (item.isOpen) {
+			const jsonDate = {
+				"status": item.isOpen ? "on" : "off",
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了${item.title}的降温`)
+	}
+	
+	const isAutoRun = () => {
+		return modules.value[0].value;
 	}
 
 	const findEquipByTitle = (title) => {
