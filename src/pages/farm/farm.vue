@@ -21,7 +21,6 @@
 				<text class="value">{{ item.value }}</text>
 			</view>
 		</view>
-
 		<!-- 提示 -->
 		<!-- <view class="breathing-light">
 			<view :class="['light-band', { 'manual-mode': isManualMode }]"></view>
@@ -33,15 +32,12 @@
 			<text>手动模式</text>
 			<switch :checked="isManualMode" @change="toggleMode" />
 		</view> -->
-
-
 		<!-- 设备控制按钮 -->
 		<!-- <view class="control-buttons">
 			<button type="primary" :disabled="!isManualMode" @click="toggleSprinkler">
 				{{ isSprinklerOn ? '关闭洒水器' : '启动洒水器' }}
 			</button>
 		</view> -->
-
 		<!-- 操作模块列表 -->
 		<view class="module-group">
 			<view v-for="(item, index) in modules" :key="item.title" class="module-item"
@@ -50,7 +46,7 @@
 				<view class="module-left">
 					<view class="icon-placeholder"
 						:class="isAutoRun() ? 'bluelet' : 'graylet'"></view>
-					<view class="icon-placeholder"
+					<view v-if="item.title !== '智能监控模式'" class="icon-placeholder"
 						:class="findEquipByTitle(item.title)?.isOpen ? 'greenlet' : 'redlet'"></view>
 				</view>
 				<text class="module-title">{{ item.title }}</text>
@@ -75,7 +71,7 @@
 				<text v-if="item.isOpen === false">{{item.title}}:未运行</text>
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
-			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)">开启</button>
+			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)" >开启</button>
 			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)">开启</button>
 			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setNum">设置温度：{{item.value}}</view>
 			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setBtn">
@@ -724,17 +720,9 @@
 			};
 			sendMessage(item.topicname, jsonDate);
 		}
-		
-
 		console.log(`点击了：${item.title}且index=`)
 		// console.log(`当前${item.title}开关情况为：eq:${equip.value[0].title}是${equip.value[0].isOpen},item:${item.isOpen}`)
 		// console.log(`当前${item.title}开关情况为：eq:${equip.value[1].title}是${equip.value[1].isOpen},item:${item.isOpen}`)
-
-		// const jsonDate = {
-		// 	"sunlimit": 250,
-		// 	"fan": "off"
-		// };
-		// sendMessage(myTopic,jsonDate);
 	}
 
 	const upTemp = (item) => {
@@ -1156,13 +1144,13 @@
 		position: fixed;
 		bottom: 0;
 		left: 100%;
-		height: 650rpx;
+		height: 680rpx;
 		width: 100%;
-		padding: 40rpx;
 		background: rgba(255, 255, 255, 0.95);
 		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 		display: flex;
 		text-align: center;
+		border-radius: 50rpx;
 
 		&.slide-in {
 			left: 0;
@@ -1175,69 +1163,84 @@
 			font-size: 36rpx;
 			color: #66BB6A
 		}
-
-		.confirm-btn {
-			width: 60%;
-			margin: 40rpx auto 0;
-			background: #e63946;
-			color: white;
-		}
-
-		.ctr-title {
-			position: absolute;
-
-			top: 36rpx;
-			left: 50%;
-
-			transform: translateX(-50%);
-		}
-
-		.offOnBtn {
-			position: absolute;
-			left: 50%;
-			top: 50%;
-			transform: translate(-50%, -50%);
-			width: 100rpx;
-			/* 圆形尺寸 */
-			height: 100rpx;
-			border-radius: 50%;
-			/* 圆形 */
-			background: #66BB6A;
-			/* 绿色背景 */
-			z-index: 1;
-			/* 确保在其他绝对定位元素之上 */
-		}
-
-		.setoffOnBtn {
-			position: absolute;
-			top: 50%;
-			width: 100rpx;
-			/* 圆形尺寸 */
-			height: 100rpx;
-			border-radius: 50%;
-			/* 圆形 */
-			background: #66BB6A;
-			/* 绿色背景 */
-			z-index: 1;
-			/* 确保在其他绝对定位元素之上 */
-		}
-
-		.setNum {
-			position: absolute;
-			left: 50%;
-			right: 50%;
-			width: 100px;
-			transform: translateY(50rpx);
-
-		}
-
-		.setBtn {
-			position: absolute;
-			left: 50%;
-			top: 50%;
-			transform: translate(-50%, -50%);
-			width: 100rpx;
-		}
-
+	}
+	
+	.ctr-title {
+	  position: absolute;
+	  top: 80rpx; /* 留出返回按钮空间 */
+	  left: 50%;
+	  transform: translateX(-50%);
+	  font-size: 36rpx;
+	  color: #333;
+	  width: 100%;
+	  text-align: center;
+	}
+	
+	/* 通用圆形按钮样式 */
+	.offOnBtn, .setoffOnBtn {
+	  position: absolute;
+	  left: 50%;
+	  transform: translateX(-50%);
+	  width: 150rpx;
+	  height: 150rpx;
+	  border-radius: 50%;
+	  background: #66BB6A;
+	  color: white;
+	  font-size: 36rpx;
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
+	  box-shadow: 0 8rpx 16rpx rgba(102,187,106,0.3);
+	}
+	
+	/* 主开关按钮垂直居中 */
+	.offOnBtn {
+	  top: 50%;
+	  transform: translate(-50%, -50%);
+	}
+	
+	/* 设置数值显示 - 在标题下方 */
+	.setNum {
+	  position: absolute;
+	  top: 180rpx; /* 在标题下方留出间距 */
+	  left: 50%;
+	  transform: translateX(-50%);
+	  font-size: 32rpx;
+	  color: #666;
+	  text-align: center;
+	}
+	.setNum text { /* 突出显示数值 */
+	  font-size: 64rpx;
+	  color: #333;
+	  display: block;
+	  margin-top: 16rpx;
+	}
+	
+	/* 设置模式开关按钮位置 */
+	.setoffOnBtn {
+	  top: 360rpx; /* 在数值显示下方 */
+	}
+	
+	/* 温度/档位控制按钮容器 */
+	.setBtn {
+	  position: absolute;
+	  bottom: 80rpx;
+	  left: 50%;
+	  transform: translateX(-50%);
+	  width: 80%;
+	  display: flex;
+	  justify-content: space-between;
+	}
+	.setBtn button {
+	  width: 200rpx;
+	  height: 80rpx;
+	  border-radius: 40rpx;
+	  background: #f5f5f5;
+	  color: #666;
+	  font-size: 32rpx;
+	  transition: all 0.2s;
+	}
+	.setBtn button:active {
+	  background: #eee;
 	}
 </style>

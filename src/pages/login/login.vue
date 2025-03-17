@@ -18,9 +18,10 @@
     <!-- 登录表单 -->
     <view class="form-container">
       <input 
+        
         class="input" 
         v-model="form.phone" 
-        placeholder="请输入手机号" 
+        :placeholder="showCodeLogin ? '请输入手机号' : '请输入手机号或用户名'" 
         type="number"
         maxlength="11"
       />
@@ -39,17 +40,18 @@
       <view v-else class="code-row">
         <input
           class="input code-input"
-          v-model="form.code"
+          v-model="form.CAPTCHA"
           placeholder="请输入验证码"
           maxlength="6"
         />
-        <text 
+        <button 
           class="code-btn" 
-          @click="handleSendCode"
+          hover-class="button-hover"
+          @tap.stop="handleSendCode"
           :style="{color: countdown > 0 ? '#999' : '#007aff'}"
-        >{{ codeBtnText }}</text>
+        >{{ codeBtnText }}</button>
       </view>
-
+      
       <button 
         class="login-btn" 
         :disabled="!canLogin" 
@@ -79,11 +81,15 @@
 import { ref, computed } from 'vue'
 import { sendSmsAPI, smsLoginAPI, pwdLoginAPI } from '@/services/login'
 import { http } from '../../utils/http'
+import { useUserStore } from '../../stores/user';
+
+const userStore = useUserStore();
 
 const form = ref({
   phone: '',
   password: '',
-  code: ''
+  username: '',
+  CAPTCHA: ''
 })
 
 // 登录方式切换
@@ -96,9 +102,9 @@ const codeBtnText = computed(() => countdown.value > 0
 
 // 登录按钮状态
 const canLogin = computed(() => {
-  const validPhone = form.value.phone.length === 11
+  const validPhone = form.value.phone.length >= 6
   if (showCodeLogin.value) {
-    return validPhone && form.value.code.length === 6
+    return validPhone && form.value.CAPTCHA.length === 6
   }
   return validPhone && form.value.password.length >= 6
 })
@@ -123,14 +129,18 @@ const handleSendCode = async () => {
 
 // 普通登录
 const handleLogin = async () => {
+  form.value.username = form.value.phone
+  console.log(form.value)
   try {
     const res = showCodeLogin.value 
-      ? await smsLoginAPI(form.value.phone, form.value.code)
-      : await pwdLoginAPI(form.value.phone, form.value.password)
-
-    if (res.code === 200) {
-      uni.setStorageSync('token', res.data.token)
-      uni.switchTab({ url: '/pages/home' })
+      ? await smsLoginAPI(form.value.phone, form.value.CAPTCHA)
+      : await pwdLoginAPI(form.value.phone, form.value.password, form.value.username)
+    
+    console.log(res)   
+    if (res.code === 1) {
+      uni.setStorageSync('token', res.data)
+      userStore.token = res.data
+      uni.switchTab({ url: '/pages/index/index' })
     }
   } catch (error) {
     uni.showToast({ title: error.message, icon: 'none' })
@@ -214,21 +224,37 @@ const handleWechatQuickLogin = async () => {
 .input {
   height: 100rpx;
   padding: 0 20rpx;
-  border-bottom: 1rpx solid #eee;
   font-size: 32rpx;
 }
 
 .code-row {
-  position: relative;
+  display: flex;
+  align-items: center;
+  border-bottom: 1rpx solid #eee; /* 统一底部边框 */
+}
+
+.code-input {
+  flex: 1;
+  border-bottom: none !important;
 }
 
 .code-btn {
-  position: absolute;
-  right: 20rpx;
-  bottom: 30rpx;
+  flex-shrink: 0;
+  height: 60rpx;
+  line-height: 60rpx;
+  padding: 0 20rpx;
   font-size: 28rpx;
-  padding-left: 20rpx;
+  background: none;
+  margin-left: 20rpx;
   border-left: 1rpx solid #eee;
+  border-radius: 0;
+}
+.code-btn::after {
+  border: none !important;
+}
+
+.button-hover {
+  opacity: 0.6;
 }
 
 .login-btn {
