@@ -22,7 +22,7 @@
         class="input" 
         v-model="form.phone" 
         :placeholder="showCodeLogin ? '请输入手机号' : '请输入手机号或用户名'" 
-        type="number"
+        
         maxlength="11"
       />
 

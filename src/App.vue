@@ -14,5 +14,6 @@ export default {
 
 <style>
 	@import url("static/part-scan/iconfont.css");
+	@import url("static/farm-icon/deng/iconfont.css");
 /*每个页面公共css */
 </style>

@@ -4,6 +4,10 @@
 		<view class="settings-button" @click="openSettings">
 			<uni-icons type="gear" size="24" color="#333"></uni-icons>
 		</view>
+		<view class="lightBtn">
+			<view v-if="!isLightOn" class="iconfont icon-bulb" @click="offonLight"></view>
+			<view v-if="isLightOn" class="iconfont icon-bulb-full" @click="offonLight"></view>
+		</view>
 
 		<!-- 连接状态 -->
 		<view class="status">当前状态：{{ deviceStatus }}</view>
@@ -225,7 +229,7 @@
 		BallrotateY.value -= inertiaSpeed.value
 
 		// 减速
-		inertiaSpeed.value *= 0.95;
+		inertiaSpeed.value *= 0.90;
 
 		// 停止条件
 		if (Math.abs(inertiaSpeed.value) < 0.1) {
@@ -354,7 +358,6 @@
 	// 		environmentData.value[0].value = `${data.temperature}°C`;
 	// 		environmentData.value[1].value = `${data.humidity}%`;
 	// 		environmentData.value[2].value = `${data.co2}ppm`;
-
 	// 		// 检查阈值
 	// 		checkThresholds(data);
 	// 	} catch (error) {
@@ -444,7 +447,7 @@
 		disconnectMQTT()
 	})
 
-	// MQTT初始化
+	// MQTT初始化_________________________________________________________________________________
 	const initMQTT = () => {
 		client.value = mqtt.connect(config.url, config.options)
 
@@ -827,6 +830,20 @@
 		isAnimating.value = false;
 		showActions.value = false;
 	}
+	
+	const isLightOn = ref(false)
+	const offonLight = () =>{
+		isLightOn.value = !isLightOn.value;
+		const jsonDate = {
+			"light_btn": isLightOn.value ? "on" : "off",
+		};
+		sendMessage(config.lightTopic, jsonDate);
+		uni.showToast({
+			title: isLightOn.value ? '已开灯' : '已关灯',
+			icon: 'none',
+			duration: 1500
+		});
+	}
 </script>
 <style lang="scss">
 	.container {
@@ -845,6 +862,12 @@
 		position: absolute;
 		top: 20px;
 		left: 20px;
+		z-index: 10;
+	}
+	.lightBtn{
+		position: absolute;
+		top: 20px;
+		right: 20px;
 		z-index: 10;
 	}
 
@@ -1242,5 +1265,13 @@
 	}
 	.setBtn button:active {
 	  background: #eee;
+	}
+	
+	.iconfont {
+	  font-family: "iconfont" !important;
+	  font-size: 22px;
+	  font-style: normal;
+	  -webkit-font-smoothing: antialiased;
+	  -moz-osx-font-smoothing: grayscale;
 	}
 </style>

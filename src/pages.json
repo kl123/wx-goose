@@ -8,7 +8,13 @@
 		}
 	},
 	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
-		
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+
 		{
 			"path": "pages/index/index",
 			"style": {
@@ -29,7 +35,7 @@
 		},
 		{
 			"path": "pages/farm/new_file",
-			"style": {             
+			"style": {
 				"navigationBarTitleText": "养殖管理测试"
 			}
 		},
@@ -39,16 +45,17 @@
 				"navigationBarTitleText": "商品详情"
 			}
 		},
-		{
-			"path": "pages/login/login",
-			"style": {
-				"navigationBarTitleText": "登录"
-			}
-		},
+
 		{
 			"path": "pages/scan/scanpage",
 			"style": {
 				"navigationBarTitleText": "测量体重"
+			}
+		},
+		{
+			"path": "pages/scan/weigh",
+			"style": {
+				"navigationBarTitleText": "测量体重-体重秤"
 			}
 		}
 	],
@@ -64,8 +71,7 @@
 		"selectedColor": "#3cc51f",
 		"borderStyle": "black",
 		"backgroundColor": "#ffffff",
-		"list": [
-			{
+		"list": [{
 				"text": "主页",
 				"pagePath": "pages/index/index",
 				"iconPath": "/static/icon/主页.png",
