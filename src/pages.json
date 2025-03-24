@@ -49,6 +49,31 @@
 			"style": {
 				"navigationBarTitleText": "测量体重"
 			}
+		},
+		{
+			"path": "pages/feed/feed",
+			"style": {
+				"navigationBarTitleText": "投喂"
+			}
+		},
+		{
+			"path": "pages/feed/feedWater",
+			"style": {
+			"navigationBarTitleText": "喂水"
+			}
+		},
+		{
+			"path": "pages/feed/feedFood",
+			"style": {
+				"navigationBarTitleText": "喂食"
+			}
+		},
+		{
+			"path" : "pages/planFood/planFood",
+			"style" : 
+			{
+				"navigationBarTitleText" : "喂食计划"
+			}
 		}
 	],
 	"globalStyle": {
@@ -79,6 +104,12 @@
 			{
 				"text": "养殖管理",
 				"pagePath": "pages/farm/farm",
+				"iconPath": "/static/icon/养殖管理.png",
+				"selectedIconPath": "/static/icon/养殖管理.png"
+			},
+			{
+				"text": "投喂",
+				"pagePath": "pages/feed/feed",
 				"iconPath": "/static/icon/养殖管理.png",
 				"selectedIconPath": "/static/icon/养殖管理.png"
 			}
