@@ -1,6 +1,6 @@
 import { useUserStore } from "../stores/user";
 
-const baseURL = "http://localhost:8084";
+const baseURL = "http://localhost:8084/wechat";
 
 
 //添加拦截器
