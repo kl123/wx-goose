@@ -1,0 +1,30 @@
+{
+  "id": "",
+  "name": "",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "4293094",
+      "name": "灯",
+      "font_class": "deng",
+      "unicode": "e769",
+      "unicode_decimal": 59241
+    },
+    {
+      "icon_id": "18164105",
+      "name": "电灯,电灯,发光,光,灯泡,想法",
+      "font_class": "bulb",
+      "unicode": "e856",
+      "unicode_decimal": 59478
+    },
+    {
+      "icon_id": "18164107",
+      "name": "电灯,电灯,发光,光,灯泡,想法",
+      "font_class": "bulb-full",
+      "unicode": "e857",
+      "unicode_decimal": 59479
+    }
+  ]
+}
