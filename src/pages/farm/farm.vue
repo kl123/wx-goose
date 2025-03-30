@@ -77,13 +77,13 @@
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
 			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)" >开启</button>
 			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)">开启</button>
-			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setNum">设置温度：{{item.value}}</view>
-			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setBtn">
+			<view v-if="item.type === 'set' && item.title !== '优化空气'" class="setNum">设置温度：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title !== '优化空气'" class="setBtn">
 				<button @click="upTemp(item)">升温</button>
 				<button @click="downTemp(item)">降温</button>
 			</view>
-			<view v-if="item.type === 'set' && item.title === '智能除氨气'" class="setNum">设置风扇挡位：{{item.value}}</view>
-			<view v-if="item.type === 'set' && item.title === '智能除氨气'" class="setBtn">
+			<view v-if="item.type === 'set' && item.title === '优化空气'" class="setNum">设置风扇挡位：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title === '优化空气'" class="setBtn">
 				<button @click="upGrade(item)">升档次</button>
 				<button @click="downGrade(item)">降档次</button>
 			</view>
@@ -289,7 +289,7 @@
 			colorClass: 'energy-ball-normal'
 		},
 		{
-			label: '氨气浓度',
+			label: '空气质量',
 			value: '--',
 			colorClass: 'energy-ball-normal'
 		},
@@ -316,7 +316,7 @@
 		},
 		light: {
 			min: 100,
-			max: 200
+			max: 600
 		},
 		nh3: {
 			min: 300,
@@ -335,9 +335,9 @@
 	const checkThresholds = (data) => {
 		environmentData.value[0].colorClass = getColorClass(data.temperature, thresholds.value.temperature);
 		environmentData.value[1].colorClass = getColorClass(data.humidity, thresholds.value.humidity);
-		environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.co2);
-		// environmentData.value[3].colorClass = getColorClass(data.co2, thresholds.value.co2);
-		// environmentData.value[4].colorClass = getColorClass(data.co2, thresholds.value.co2);
+		environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.light);
+		environmentData.value[3].colorClass = 'energy-ball-warning';
+		environmentData.value[4].colorClass = getColorClass(data.co2, thresholds.value.co2);
 	};
 
 	// 根据阈值获取颜色
@@ -404,7 +404,7 @@
 	const saveSettings = () => {
 		popup.value.close();
 		// 保存后重新检查阈值
-		checkThresholds(mockData);
+		checkThresholds(data);
 	};
 
 	//手动操作提示词
@@ -467,6 +467,8 @@
 			environmentData.value[0].value = `${result.temperature}°C`;
 			environmentData.value[1].value = `${result.humidity}%`;
 			environmentData.value[2].value = `${result.light_intensity}lx`;
+			environmentData.value[3].value = `${result.airQuality}`
+			environmentData.value[4].value = `${result.co2}%`
 			// updateTime.value = new Date().toLocaleString()
 			checkThresholds(result);
 			// console.log('收到数据:', result.value)
@@ -544,7 +546,7 @@
 
 	// 洒水器状态
 	const equip = ref([{
-			title: '智能除氨气',
+			title: '优化空气',
 			isOpen: false,
 			type: 'set',
 			value: 1,
@@ -620,7 +622,7 @@
 			value: true
 		},
 		{
-			title: '智能除氨气',
+			title: '优化空气',
 			type: 'arrow'
 		},
 		{
