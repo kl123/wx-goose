@@ -8,6 +8,9 @@
 			<view v-if="!isLightOn" class="iconfont icon-bulb" @click="offonLight"></view>
 			<view v-if="isLightOn" class="iconfont icon-bulb-full" @click="offonLight"></view>
 		</view>
+		<view class="scan_button" @click="Toscan">
+			<uni-icons type="gear" size="24" color="#333"></uni-icons>
+		</view>
 
 		<!-- 连接状态 -->
 		<view class="status">当前状态：{{ deviceStatus }}</view>
@@ -396,9 +399,15 @@
 
 	// 打开设置弹窗
 	const popup = ref(null);
-	const openSettings = () => {
+	const openScan = () => {
 		popup.value.open();
 	};
+	
+	const Toscan = () => {
+		uni.navigateTo({
+			url: '/pages/farm/gooseNum'
+		});
+	}
 
 	// 保存设置
 	const saveSettings = () => {
@@ -861,6 +870,12 @@
 	.settings-button {
 		position: absolute;
 		top: 20px;
+		left: 20px;
+		z-index: 10;
+	}
+	.scan_button {
+		position: absolute;
+		top: 70px;
 		left: 20px;
 		z-index: 10;
 	}

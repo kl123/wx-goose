@@ -57,6 +57,12 @@
 			"style": {
 				"navigationBarTitleText": "测量体重-体重秤"
 			}
+		},
+		{
+			"path": "pages/farm/gooseNum",
+			"style": {
+				"navigationBarTitleText": "鹅厂监测"
+			}
 		}
 	],
 	"globalStyle": {
