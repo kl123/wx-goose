@@ -339,8 +339,10 @@
 		environmentData.value[0].colorClass = getColorClass(data.temperature, thresholds.value.temperature);
 		environmentData.value[1].colorClass = getColorClass(data.humidity, thresholds.value.humidity);
 		environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.light);
+
 		environmentData.value[3].colorClass = 'energy-ball-normal';
 		environmentData.value[4].colorClass = getColorClass(data.co2.value, thresholds.value.co2);
+
 	};
 
 	// 根据阈值获取颜色
@@ -413,7 +415,7 @@
 	const saveSettings = () => {
 		popup.value.close();
 		// 保存后重新检查阈值
-		checkThresholds(mockData);
+		checkThresholds(data);
 	};
 
 	//手动操作提示词
@@ -483,6 +485,7 @@
 			environmentData.value[1].value = `${result.humidity}%`;
 			environmentData.value[2].value = `${result.light_intensity}lx`;
 			environmentData.value[3].value = `${result.airQuality}`
+
 			environmentData.value[4].value = `${result.co2}ppm`
 			
 			mockData.temperature = result.temperature;
@@ -490,6 +493,7 @@
 			mockData.light_intensity = result.light_intensity;
 			mockData.airQuality = result.airQuality;
 			mockData.co2 = result.co2;
+
 			// updateTime.value = new Date().toLocaleString()
 			checkThresholds(result);
 			// console.log('收到数据:', result.value)
