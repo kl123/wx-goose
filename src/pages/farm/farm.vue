@@ -415,7 +415,7 @@
 	const saveSettings = () => {
 		popup.value.close();
 		// 保存后重新检查阈值
-		checkThresholds(data);
+		checkThresholds(mockData);
 	};
 
 	//手动操作提示词
