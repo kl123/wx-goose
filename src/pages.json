@@ -59,6 +59,11 @@
 			}
 		},
 		{
+			"path": "pages/farm/gooseNum",
+			"style": {
+				"navigationBarTitleText": "鹅厂监测"
+      }
+    },
 			"path": "pages/feed/feed",
 			"style": {
 				"navigationBarTitleText": "投喂"
