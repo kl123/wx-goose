@@ -2,7 +2,7 @@
   <view class="container">
     <!-- 设备信息 -->
     <view class="device-info">
-      <image class="device-image" src="/static/feed/喂食器皿.png" mode="aspectFit"></image>
+      <image class="device-image" src="/static/logo.png" mode="aspectFit"></image>
     </view>
 
     <!-- 喂食状态 -->
@@ -48,7 +48,7 @@
             backgroundColor="#e0e0e0" 
           />
           <image 
-            :src="isFed[index] ? '/static/feed/planFeed_gray.png' : '/static/feed/planFeed.png'" 
+            :src="isFed[index] ? '/static/logo_gray.png' : '/static/logo.png'" 
             class="feed-icon" 
             mode="aspectFit"
             @click="handleFeedIconClick(index)"
@@ -64,11 +64,11 @@
     <!-- 底部操作区 -->
     <view class="action-area">
       <view class="action-button" @click="handleAddMeal">
-        <image class="action-icon" src="/static/feed/goose.png" mode="aspectFit"></image>
+        <image class="action-icon" src="/static/logo.png" mode="aspectFit"></image>
         <text class="action-text">立即加餐</text>
       </view>
       <view class="action-button" @click="handleDispense">
-        <image class="action-icon" src="/static/feed/goose.png" mode="aspectFit"></image>
+        <image class="action-icon" src="/static/logo.png" mode="aspectFit"></image>
         <text class="action-text">立即出粮</text>
       </view>
     </view>
@@ -536,4 +536,4 @@ onMounted(() => {
   font-size: 14px;
 }
 </style>
-//1
+//5

@@ -110,8 +110,8 @@
 			{
 				"text": "投喂",
 				"pagePath": "pages/feed/feed",
-				"iconPath": "/static/icon/养殖管理.png",
-				"selectedIconPath": "/static/icon/养殖管理.png"
+				"iconPath": "/static/icon/投喂.png",
+				"selectedIconPath": "/static/icon/投喂.png"
 			}
 		]
 	}
