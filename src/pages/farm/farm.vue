@@ -341,12 +341,14 @@
 		environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.light);
 
 		environmentData.value[3].colorClass = 'energy-ball-normal';
-		environmentData.value[4].colorClass = getColorClass(data.co2.value, thresholds.value.co2);
+		environmentData.value[4].colorClass = getColorClass(data.co2, thresholds.value.co2);
 
 	};
 
 	// 根据阈值获取颜色
 	const getColorClass = (value, threshold) => {
+		console.log(value)
+		console.log(threshold.min,threshold.max)
 		if (value < threshold.min || value > threshold.max) {
 			return 'energy-ball-warning'; // 超出阈值显示红色
 		}
