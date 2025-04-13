@@ -5,29 +5,20 @@
       <image class="device-image" src="/static/feed/喂食器皿.png" mode="aspectFit"></image>
     </view>
 
-    <!-- 喂食状态 -->
-    <view class="feeding-status">
-      <text class="progress-text">已出粮: {{ dispensedAmount }} 份</text>
-      <view class="progress-row">
-        <progress 
-          class="progress-bar" 
-          :percent="progressPercent" 
-          stroke-width="6" 
-          activeColor="#90EE90" 
-          backgroundColor="#e0e0e0" 
+    <!-- 出粮控制区 -->
+    <view class="feeding-control">
+      <view class="input-row">
+        <text class="input-label">出粮斤数:</text>
+        <input 
+          class="input-box" 
+          type="number" 
+          v-model="manualDispenseAmount" 
+          placeholder="请输入出粮斤数"
         />
-        <text class="planned-amount">计划出粮: {{ plannedAmount }} 份</text>
       </view>
-      <view class="feeding-details">
-        <view class="detail-item">
-          <text class="detail-value">{{ extraMeals }} 份</text>
-          <text class="detail-label">今日加餐</text>
-        </view>
-        <view class="detail-item" @click="goToPlanFoodPage">
-          <text class="detail-value">{{ plannedAmount }} 份</text>
-          <text class="detail-label">计划出粮</text>
-        </view>
-      </view>
+      <text class="manual-feed-text" v-if="manualDispensed > 0">
+        已手动出粮: {{ manualDispensed }} 斤
+      </text>
     </view>
 
     <!-- 今日喂养计划模块 -->
@@ -56,16 +47,16 @@
         </view>
       </view>
       <view class="feeding-info">
-        <text>本次出粮: {{ currentFeedingTime }} {{ currentFeedingAmount }} 份</text>
-        <text>下次出粮: {{ nextFeedingTime }} {{ nextFeedingAmount }} 份</text>
+        <text>本次出粮: {{ currentFeedingTime }} {{ currentFeedingAmount }} 斤</text>
+        <text>下次出粮: {{ nextFeedingTime }} {{ nextFeedingAmount }} 斤</text>
       </view>
     </view>
 
     <!-- 底部操作区 -->
     <view class="action-area">
-      <view class="action-button" @click="handleAddMeal">
+      <view class="action-button" @click="goToPlanFoodPage">
         <image class="action-icon" src="/static/feed/goose.png" mode="aspectFit"></image>
-        <text class="action-text">立即加餐</text>
+        <text class="action-text">计划出粮</text>
       </view>
       <view class="action-button" @click="handleDispense">
         <image class="action-icon" src="/static/feed/goose.png" mode="aspectFit"></image>
@@ -77,52 +68,148 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow } from '@dcloudio/uni-app' // 只从 uni-app 导入 onShow
+import { onMounted, onUnmounted } from 'vue' // 从 vue 导入 onMounted 和 onUnmounted
+import mqtt from 'mqtt/dist/mqtt.js' // 确保已安装 mqtt 库
 
-const dispensedAmount = ref(0)    // 已出粮份数
-const plannedAmount = ref(0)      // 计划出粮份数
-const extraMeals = ref(0)         // 今日加餐份数
+const manualDispenseAmount = ref('') // 手动输入出粮份数
+const manualDispensed = ref(0)      // 已手动出粮份数
+const plannedAmount = ref(0)        // 计划出粮份数
 const timeSlots = ref(['00:00', '06:00', '12:00', '18:00', '24:00'])
 const mealAmounts = ref([0, 0, 0, 0, 0])  // 每个时间点的计划份数
 const isFed = ref([false, false, false, false, false])  // 每个时间点是否已喂食
 const fedAmounts = ref([0, 0, 0, 0, 0])  // 每个时间点的实际喂食份数
 
-// 计算总进度条百分比
-const progressPercent = computed(() => {
-  const plannedDispensed = dispensedAmount.value - extraMeals.value
-  return plannedAmount.value > 0 
-    ? Math.min((plannedDispensed / plannedAmount.value) * 100, 100)
-    : 0
-})
+// MQTT 配置
+const mqttConfig = {
+  url: 'wxs://bemfa.com:9504/wss', // 巴法云 MQTT 地址
+  options: {
+    clientId: '6fc94297b1a4771e713523fd16d19702', // 替换为您的巴法云 clientId
+    keepalive: 60,
+    clean: true,
+    protocolVersion: 4,
+    reconnectPeriod: 5000,
+    connectTimeout: 10000
+  },
+  topics: {
+    food: 'food' // 出粮主题
+  }
+}
+
+let mqttClient = ref(null)
+
+// 初始化 MQTT 连接
+const initMQTT = async () => {
+  try {
+    if (typeof mqtt === 'undefined') {
+      throw new Error('MQTT库未正确加载')
+    }
+    
+    mqttClient.value = mqtt.connect(mqttConfig.url, mqttConfig.options)
+    
+    mqttClient.value.on('connect', () => {
+      console.log('✅ MQTT连接成功')
+      uni.showToast({ title: '设备连接成功', icon: 'success' })
+      
+      // 订阅 food 主题
+      mqttClient.value.subscribe(mqttConfig.topics.food, { qos: 1 }, (err) => {
+        if (err) {
+          console.error('订阅food主题失败:', err)
+          uni.showToast({ title: '订阅food主题失败', icon: 'none' })
+        } else {
+          console.log('成功订阅food主题')
+        }
+      })
+    })
+    
+    mqttClient.value.on('message', (topic, message) => {
+      console.log('收到MQTT消息:', topic, message.toString())
+      try {
+        const data = JSON.parse(message.toString())
+        if (topic === mqttConfig.topics.food && data.status === 'on' && data.num) {
+          console.log('收到出粮指令:', data.num)
+          // 可选：根据接收到的消息更新状态
+          manualDispensed.value += parseInt(data.num) || 0
+        }
+      } catch (error) {
+        console.error('解析MQTT消息失败:', error)
+      }
+    })
+    
+    mqttClient.value.on('error', (err) => {
+      console.error('MQTT连接错误:', err)
+      uni.showToast({ title: '设备连接失败', icon: 'none' })
+    })
+    
+    mqttClient.value.on('reconnect', () => {
+      console.log('正在尝试重新连接MQTT...')
+    })
+    
+  } catch (error) {
+    console.error('MQTT初始化错误:', error)
+    uni.showToast({
+      title: 'MQTT初始化失败: ' + error.message,
+      icon: 'none'
+    })
+    setTimeout(initMQTT, 5000) // 5秒后重试
+  }
+}
+
+// 发送出粮指令
+const sendFeedCommand = (amount) => {
+  return new Promise((resolve, reject) => {
+    if (!mqttClient.value || !mqttClient.value.connected) {
+      console.error('MQTT客户端未连接')
+      reject(new Error('设备未连接'))
+      return
+    }
+    
+    const command = {
+      num: amount,
+      status: 'on'
+    }
+    
+    mqttClient.value.publish(
+      mqttConfig.topics.food,
+      JSON.stringify(command),
+      { qos: 1 },
+      (err) => {
+        if (err) {
+          console.error('发送出粮指令失败:', err)
+          reject(err)
+        } else {
+          console.log('出粮指令发送成功:', command)
+          resolve(true)
+        }
+      }
+    )
+  })
+}
 
 // 计算每个时间点的喂食进度
 const feedProgress = computed(() => {
   return timeSlots.value.map((_, index) => {
-    if (mealAmounts.value[index] === 0) return 0 // 如果计划喂食量为 0，进度为 0
-    if (isFed.value[index]) return 100 // 如果已经喂食完成，进度为 100%
+    if (mealAmounts.value[index] === 0) return 0
+    if (isFed.value[index]) return 100
     return Math.min((fedAmounts.value[index] / mealAmounts.value[index]) * 100, 100)
   })
 })
 
 // 计算本次出粮时间和份数
-// 计算本次出粮时间
 const currentFeedingTime = computed(() => {
   const now = new Date()
   const currentHour = now.getHours()
   const currentMinute = now.getMinutes()
   const currentTime = currentHour * 60 + currentMinute
 
-  // 查找当前时间点之后的第一个未喂食的时间点
   for (let i = 0; i < timeSlots.value.length; i++) {
     const [hour, minute] = timeSlots.value[i].split(':').map(Number)
     const slotTime = hour * 60 + minute
-
     if (slotTime >= currentTime && mealAmounts.value[i] > 0 && !isFed.value[i]) {
       return timeSlots.value[i]
     }
   }
 
-  // 如果当前时间超过 24:00，则从第二天的 00:00 开始重新检查
   for (let i = 0; i < timeSlots.value.length; i++) {
     if (mealAmounts.value[i] > 0 && !isFed.value[i]) {
       return timeSlots.value[i]
@@ -138,17 +225,14 @@ const currentFeedingAmount = computed(() => {
   const currentMinute = now.getMinutes()
   const currentTime = currentHour * 60 + currentMinute
 
-  // 查找当前时间点之后的第一个未喂食的时间点
   for (let i = 0; i < timeSlots.value.length; i++) {
     const [hour, minute] = timeSlots.value[i].split(':').map(Number)
     const slotTime = hour * 60 + minute
-
     if (slotTime >= currentTime && mealAmounts.value[i] > 0 && !isFed.value[i]) {
       return mealAmounts.value[i]
     }
   }
 
-  // 如果当前时间超过 24:00，则从第二天的 00:00 开始重新检查
   for (let i = 0; i < timeSlots.value.length; i++) {
     if (mealAmounts.value[i] > 0 && !isFed.value[i]) {
       return mealAmounts.value[i]
@@ -158,35 +242,32 @@ const currentFeedingAmount = computed(() => {
   return 0
 })
 
-// 计算下次出粮时间
+// 计算下次出粮时间和份数
 const nextFeedingTime = computed(() => {
   const now = new Date()
   const currentHour = now.getHours()
   const currentMinute = now.getMinutes()
   const currentTime = currentHour * 60 + currentMinute
-
   let foundCurrent = false
-  // 查找当前时间点之后的第一个未喂食的时间点
+
   for (let i = 0; i < timeSlots.value.length; i++) {
     const [hour, minute] = timeSlots.value[i].split(':').map(Number)
     const slotTime = hour * 60 + minute
-
     if (slotTime >= currentTime && mealAmounts.value[i] > 0 && !isFed.value[i]) {
       if (foundCurrent) {
-        return timeSlots.value[i] // 返回下一个未喂食的时间点
+        return timeSlots.value[i]
       } else {
-        foundCurrent = true // 标记已找到当前时间点
+        foundCurrent = true
       }
     }
   }
 
-  // 如果当前时间超过 24:00，则从第二天的 00:00 开始重新检查
   for (let i = 0; i < timeSlots.value.length; i++) {
     if (mealAmounts.value[i] > 0 && !isFed.value[i]) {
       if (foundCurrent) {
-        return timeSlots.value[i] // 返回下一个未喂食的时间点
+        return timeSlots.value[i]
       } else {
-        foundCurrent = true // 标记已找到当前时间点
+        foundCurrent = true
       }
     }
   }
@@ -199,36 +280,32 @@ const nextFeedingAmount = computed(() => {
   const currentHour = now.getHours()
   const currentMinute = now.getMinutes()
   const currentTime = currentHour * 60 + currentMinute
-
   let foundCurrent = false
-  // 查找当前时间点之后的第一个未喂食的时间点
+
   for (let i = 0; i < timeSlots.value.length; i++) {
     const [hour, minute] = timeSlots.value[i].split(':').map(Number)
     const slotTime = hour * 60 + minute
-
     if (slotTime >= currentTime && mealAmounts.value[i] > 0 && !isFed.value[i]) {
       if (foundCurrent) {
-        return mealAmounts.value[i] // 返回下一个未喂食的时间点的份数
+        return mealAmounts.value[i]
       } else {
-        foundCurrent = true // 标记已找到当前时间点
+        foundCurrent = true
       }
     }
   }
 
-  // 如果当前时间超过 24:00，则从第二天的 00:00 开始重新检查
   for (let i = 0; i < timeSlots.value.length; i++) {
     if (mealAmounts.value[i] > 0 && !isFed.value[i]) {
       if (foundCurrent) {
-        return mealAmounts.value[i] // 返回下一个未喂食的时间点的份数
+        return mealAmounts.value[i]
       } else {
-        foundCurrent = true // 标记已找到当前时间点
+        foundCurrent = true
       }
     }
   }
 
   return 0
 })
-
 
 // 跳转到计划出粮页面
 const goToPlanFoodPage = () => {
@@ -237,77 +314,53 @@ const goToPlanFoodPage = () => {
   })
 }
 
-// 立即加餐
-const handleAddMeal = () => {
-  extraMeals.value += 1
-  dispensedAmount.value += 1
-  uni.showToast({
-    title: '已加餐 1 份',
-    icon: 'success'
-  })
-}
-
 // 立即出粮
-const handleDispense = () => {
-  const plannedDispensed = dispensedAmount.value - extraMeals.value
-  if (plannedDispensed < plannedAmount.value) {
-    dispensedAmount.value += 1
-
-    // 找到当前时间点对应的索引
-    const now = new Date()
-    const currentHour = now.getHours()
-    const currentMinute = now.getMinutes()
-    const currentTime = currentHour * 60 + currentMinute
-
-    let found = false
-    for (let i = 0; i < timeSlots.value.length; i++) {
-      const [hour, minute] = timeSlots.value[i].split(':').map(Number)
-      const slotTime = hour * 60 + minute
-
-      // 如果当前时间点未喂食且有计划喂食量
-      if (slotTime >= currentTime && mealAmounts.value[i] > 0 && !isFed.value[i]) {
-        fedAmounts.value[i] += 1 // 更新实际喂食份数
-        isFed.value[i] = fedAmounts.value[i] >= mealAmounts.value[i] // 更新喂食完成状态
-        found = true
-        break // 只更新当前时间点
-      }
-    }
-
-    // 如果当前时间超过 24:00，则从 00:00 开始重新检查
-    if (!found) {
-      for (let i = 0; i < timeSlots.value.length; i++) {
-        if (mealAmounts.value[i] > 0 && !isFed.value[i]) {
-          fedAmounts.value[i] += 1
-          isFed.value[i] = fedAmounts.value[i] >= mealAmounts.value[i]
-          break
-        }
-      }
-    }
-
+const handleDispense = async () => {
+  const inputAmount = parseInt(manualDispenseAmount.value) || 0
+  if (inputAmount <= 0) {
     uni.showToast({
-      title: '已出粮 1 份',
+      title: '请输入有效的出粮份数',
+      icon: 'none'
+    })
+    return
+  }
+
+  // 计算实际发送值：输入值除以100
+  const sendAmount = Math.floor(inputAmount / 100)
+  
+  try {
+    await sendFeedCommand(sendAmount) // 发送 MQTT 出粮指令
+    manualDispensed.value += inputAmount // 更新已手动出粮份数(显示原始输入值)
+    manualDispenseAmount.value = '' // 清空输入框
+    
+    uni.showToast({
+      title: `已手动出粮 ${inputAmount} 斤`,
       icon: 'success'
     })
-  } else {
+  } catch (error) {
     uni.showToast({
-      title: '已达到计划出粮量',
+      title: '出粮失败: ' + error.message,
       icon: 'none'
     })
   }
 }
 
+// 时间点喂食
 const handleFeedIconClick = (index) => {
   if (!isFed.value[index]) {
-    fedAmounts.value[index] += 1
-
-    if (fedAmounts.value[index] >= mealAmounts.value[index]) {
+    // 每次点击增加100斤(对应发送1)
+    fedAmounts.value[index] += 100
+    if (fedAmounts.value[index] >= mealAmounts.value[index] * 100) {
       isFed.value[index] = true
     }
-
-    dispensedAmount.value += 1
-
+    
+    // 发送1份(对应100斤)
+    sendFeedCommand(1).catch(err => {
+      console.error('发送出粮指令失败:', err)
+    })
+    
     uni.showToast({
-      title: `已出粮 1 份`,
+      title: `已出粮 100 斤`,
       icon: 'success'
     })
   } else {
@@ -318,65 +371,28 @@ const handleFeedIconClick = (index) => {
   }
 }
 
-// 更新喂食状态
-const updateFeedingStatus = () => {
-  let remaining = dispensedAmount.value - extraMeals.value // 排除加餐的份数
-  fedAmounts.value = [0, 0, 0, 0, 0] // 重置实际喂食份数
-
-  for (let i = 0; i < mealAmounts.value.length; i++) {
-    if (remaining > 0 && mealAmounts.value[i] > 0) {
-      const amountToFeed = Math.min(remaining, mealAmounts.value[i])
-      fedAmounts.value[i] = amountToFeed
-      remaining -= amountToFeed
-      isFed.value[i] = fedAmounts.value[i] >= mealAmounts.value[i] // 更新喂食完成状态
-    } else {
-      fedAmounts.value[i] = 0
-      isFed.value[i] = false
-    }
-  }
-}
-
 // 监听页面显示事件，更新数据
 onShow(() => {
   const plannedAmountFromStorage = uni.getStorageSync('plannedAmount')
   const mealAmountsFromStorage = uni.getStorageSync('mealAmounts')
   if (plannedAmountFromStorage) {
-    plannedAmount.value = plannedAmountFromStorage
+    plannedAmount.value = parseInt(plannedAmountFromStorage) || 0
   }
   if (mealAmountsFromStorage) {
     mealAmounts.value = mealAmountsFromStorage.map(amount => parseInt(amount) || 0)
   }
-  updateFeedingStatus()
+  console.log('onShow: plannedAmount=', plannedAmount.value, 'mealAmounts=', mealAmounts.value)
 })
 
-import { onMounted, onUnmounted } from 'vue'
-
-const resetDailyFeedingStatus = () => {
-  isFed.value = [false, false, false, false, false]
-  fedAmounts.value = [0, 0, 0, 0, 0]
-  dispensedAmount.value = 0
-  extraMeals.value = 0
-}
-
-// 监听日期变化
-const checkDateChange = () => {
-  const today = new Date().getDate()
-  let lastCheckedDate = today
-
-  const interval = setInterval(() => {
-    const currentDate = new Date().getDate()
-    if (currentDate !== lastCheckedDate) {
-      resetDailyFeedingStatus()
-      lastCheckedDate = currentDate
-    }
-  }, 60000) // 每分钟检查一次
-
-  return interval
-}
-
+// 生命周期钩子
 onMounted(() => {
-  const interval = checkDateChange()
-  onUnmounted(() => clearInterval(interval))
+  initMQTT() // 初始化 MQTT
+})
+
+onUnmounted(() => {
+  if (mqttClient.value && mqttClient.value.connected) {
+    mqttClient.value.end() // 断开 MQTT 连接
+  }
 })
 </script>
 
@@ -402,61 +418,39 @@ onMounted(() => {
   margin-bottom: 10px;
 }
 
-.feeding-status {
+.feeding-control {
   width: 100%;
   margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
 }
 
-.progress-text {
-  font-size: 16px;
+.input-row {
+  display: flex;
+  align-items: center;
   margin-bottom: 15px;
 }
 
-.progress-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 15px;
-  margin-bottom: 30px;
-}
-
-.progress-bar {
-  flex: 1;
-  margin-right: 10px;
-  border-radius: 10px;
-  border: 1px solid #e0e0e0;
-}
-
-.planned-amount {
+.input-label {
   font-size: 16px;
+  margin-right: 10px;
 }
 
-.feeding-details {
-  display: flex;
-  justify-content: space-around;
-  background-color: #f9f9f9;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+.input-box {
+  flex: 1;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
 }
 
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.detail-value {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.detail-label {
+.manual-feed-text {
   font-size: 14px;
   color: #666;
+  text-align: center;
 }
 
-/* 今日喂养计划样式 */
 .feeding-plan {
   width: 100%;
   margin-bottom: 20px;
@@ -489,7 +483,6 @@ onMounted(() => {
   width: 50px;
   margin-bottom: 5px;
   border-radius: 5px;
-  transition: all 0.3s ease; /* 添加过渡效果 */
 }
 
 .feed-icon {
@@ -523,6 +516,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 10px;
 }
 
 .action-icon {
@@ -536,4 +530,3 @@ onMounted(() => {
   font-size: 14px;
 }
 </style>
-//1

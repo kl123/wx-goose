@@ -1,17 +1,19 @@
 <template>
-  <view class="plan-food-container">
+  <view class="plan-water-container">
     <view class="time-slot" v-for="(time, index) in timeSlots" :key="index">
       <text class="time">{{ time }}</text>
       <input 
-        v-model="mealAmounts[index]" 
+        v-model="waterAmounts[index]" 
         type="number" 
         placeholder="0" 
-        class="meal-input"
+        class="water-input"
+        min="0"
+        max="100"
       />
-      <text>斤</text>
+      <text>%</text>
     </view>
     <view class="total-amount">
-      <text>总出粮份数: {{ totalAmount }} 斤</text>
+      <text>总出水量: {{ totalAmount }}%</text>
     </view>
     <view class="save-button" @click="savePlan">
       <text>保存</text>
@@ -24,43 +26,43 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 
 const timeSlots = ref(['00:00', '06:00', '12:00', '18:00', '24:00'])
-const mealAmounts = ref([0, 0, 0, 0, 0])
+const waterAmounts = ref([0, 0, 0, 0, 0])
 
-// 计算总出粮份数
+// 计算总出水量百分比
 const totalAmount = computed(() => {
-  return mealAmounts.value.reduce((sum, amount) => sum + (parseInt(amount) || 0), 0)
+  return waterAmounts.value.reduce((sum, amount) => sum + (parseInt(amount) || 0), 0)
 })
 
 // 加载保存的数据
 const loadSavedData = () => {
-  const savedAmounts = uni.getStorageSync('mealAmounts')
+  const savedAmounts = uni.getStorageSync('waterAmounts')
   if (savedAmounts) {
-    mealAmounts.value = savedAmounts.map(amount => parseInt(amount) || 0)
+    waterAmounts.value = savedAmounts.map(amount => parseInt(amount) || 0)
   }
 }
 
 // 保存计划
 const savePlan = () => {
-  // 添加输入验证
-  const invalidIndex = mealAmounts.value.findIndex(amount => {
+  // 验证输入值是否在0-100之间
+  const invalidIndex = waterAmounts.value.findIndex(amount => {
     const num = parseInt(amount) || 0
-    return num < 0
+    return num < 0 || num > 100
   })
   
   if (invalidIndex !== -1) {
     uni.showToast({
-      title: `时间点${timeSlots.value[invalidIndex]}的数值不能为负数`,
+      title: `时间点${timeSlots.value[invalidIndex]}的数值需在0-100之间`,
       icon: 'none'
     })
     return
   }
 
-  uni.setStorageSync('plannedAmount', totalAmount.value)
-  uni.setStorageSync('mealAmounts', mealAmounts.value)
+  uni.setStorageSync('plannedWaterAmount', totalAmount.value)
+  uni.setStorageSync('waterAmounts', waterAmounts.value)
   uni.navigateBack()
   
   uni.showToast({
-    title: '喂食计划已保存',
+    title: '喂水计划已保存',
     icon: 'success'
   })
 }
@@ -72,7 +74,7 @@ onLoad(() => {
 </script>
 
 <style scoped>
-.plan-food-container {
+.plan-water-container {
   padding: 20px;
 }
 
@@ -92,7 +94,7 @@ onLoad(() => {
   width: 60px;
 }
 
-.meal-input {
+.water-input {
   width: 80px;
   height: 36px;
   border: 1px solid #e0e0e0;
@@ -112,7 +114,7 @@ onLoad(() => {
 
 .save-button {
   margin-top: 40px;
-  background-color: #cc9900; /* 暗黄色 */
+  background-color: #4a90e2;
   padding: 12px;
   border-radius: 8px;
   text-align: center;
@@ -122,6 +124,6 @@ onLoad(() => {
 }
 
 .save-button:active {
-  background-color: #b38600; /* 按下时更深的暗黄色 */
+  background-color: #3a7bc8;
 }
 </style>

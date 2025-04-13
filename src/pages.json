@@ -53,7 +53,7 @@
 		{
 			"path": "pages/feed/feed",
 			"style": {
-				"navigationBarTitleText": "投喂"
+				"navigationBarTitleText": "鹅监控"
 			}
 		},
 		{
@@ -73,6 +73,20 @@
 			"style" : 
 			{
 				"navigationBarTitleText" : "喂食计划"
+			}
+		},
+		{
+			"path" : "pages/feed/disease",
+			"style" : 
+			{
+				"navigationBarTitleText" : "疾病记录"
+			}
+		},
+		{
+			"path" : "pages/planWater/planWater",
+			"style" : 
+			{
+				"navigationBarTitleText" : "喂水计划"
 			}
 		}
 	],
@@ -108,7 +122,7 @@
 				"selectedIconPath": "/static/icon/养殖管理.png"
 			},
 			{
-				"text": "投喂",
+				"text": "鹅监控",
 				"pagePath": "pages/feed/feed",
 				"iconPath": "/static/icon/投喂.png",
 				"selectedIconPath": "/static/icon/投喂.png"
