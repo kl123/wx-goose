@@ -690,6 +690,7 @@ onUnmounted(() => {
   justify-content: space-around;
   background-color: #fff;
   border-radius: 10px 10px 0 0;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .action-button {
@@ -697,6 +698,12 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 10px;
+  transition: opacity 0.3s;
+}
+
+.action-button.disabled {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .action-icon {
@@ -708,6 +715,7 @@ onUnmounted(() => {
 
 .action-text {
   font-size: 14px;
+  color: #333;
 }
 
 .remaining-water {
