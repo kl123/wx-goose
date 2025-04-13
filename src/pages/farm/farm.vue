@@ -4,6 +4,10 @@
 		<view class="settings-button" @click="openSettings">
 			<uni-icons type="gear" size="24" color="#333"></uni-icons>
 		</view>
+		<view class="lightBtn">
+			<view v-if="!isLightOn" class="iconfont icon-bulb" @click="offonLight"></view>
+			<view v-if="isLightOn" class="iconfont icon-bulb-full" @click="offonLight"></view>
+		</view>
 
 		<!-- 连接状态 -->
 		<view class="status">当前状态：{{ deviceStatus }}</view>
@@ -21,7 +25,6 @@
 				<text class="value">{{ item.value }}</text>
 			</view>
 		</view>
-
 		<!-- 提示 -->
 		<!-- <view class="breathing-light">
 			<view :class="['light-band', { 'manual-mode': isManualMode }]"></view>
@@ -33,52 +36,59 @@
 			<text>手动模式</text>
 			<switch :checked="isManualMode" @change="toggleMode" />
 		</view> -->
-
-
 		<!-- 设备控制按钮 -->
 		<!-- <view class="control-buttons">
 			<button type="primary" :disabled="!isManualMode" @click="toggleSprinkler">
 				{{ isSprinklerOn ? '关闭洒水器' : '启动洒水器' }}
 			</button>
 		</view> -->
-
 		<!-- 操作模块列表 -->
 		<view class="module-group">
 			<view v-for="(item, index) in modules" :key="item.title" class="module-item"
 				:style="[backgroundStyles[index], { transitionDelay: `${index * 50}ms` }]"
 				:class="{ 'slide-out': isAnimating }" @click="startAnimation(index)">
 				<view class="module-left">
-					<view class="icon-placeholder"></view>
-					<view class="icon-placeholder"></view>
+					<view class="icon-placeholder"
+						:class="isAutoRun() ? 'bluelet' : 'graylet'"></view>
+					<view v-if="item.title !== '智能监控模式'" class="icon-placeholder"
+						:class="findEquipByTitle(item.title)?.isOpen ? 'greenlet' : 'redlet'"></view>
 				</view>
 				<text class="module-title">{{ item.title }}</text>
 				<view v-if="item.type === 'arrow'" class="arrow-right">→</view>
 				<switch v-if="item.type === 'switch'" :checked="item.value" @change="(e) => toggleMode(e, index)" />
 			</view>
 		</view>
-		
+
 
 
 		<!-- 操作按钮组 -->
-		<view class="action-group" :class="{ 'slide-in': showActions }">
+		<!-- <view class="action-group" :class="{ 'slide-in': showActions }">
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
 			<button class="confirm-btn" @click="handleConfirm">确认操作</button>
-		</view>
-		
-		<!-- <view v-for="{item,index} in choiceModudle" :key="item.title" class="action-group" :class="{'slide-in': showActions}">
-			<view class="title">
-				<text v-if="item.isOpen === true">运行中</text>
-				<text v-if="item.isOpen === false">未运行</text>
+		</view> -->
+
+		<view v-if="choiceModudle.length > 0" v-for="item in choiceModudle" :key="item.title" class="action-group"
+			:class="{'slide-in': showActions}">
+
+			<view class="ctr-title">
+				<text v-if="item.isOpen === true">{{item.title}}:运行中</text>
+				<text v-if="item.isOpen === false">{{item.title}}:未运行</text>
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
-			<button v-if="item.type === 'offon'" class="offOnBtn"></button>
-			<view v-if="item.type === 'set'" class="setNum">{{item.value}}</view>
-			<view v-if="item.type === 'set'" class="setBtn">
-				<button>升温</button>
-				<button>降温</button>
+			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)" >开启</button>
+			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)">开启</button>
+			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setNum">设置温度：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setBtn">
+				<button @click="upTemp(item)">升温</button>
+				<button @click="downTemp(item)">降温</button>
 			</view>
-		</view> -->
-		
+			<view v-if="item.type === 'set' && item.title === '智能除氨气'" class="setNum">设置风扇挡位：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title === '智能除氨气'" class="setBtn">
+				<button @click="upGrade(item)">升档次</button>
+				<button @click="downGrade(item)">降档次</button>
+			</view>
+		</view>
+
 		<!-- <view v-if="choiceModudle"class="action-group" :class="{ 'slide-in': showActions }">WIN!</view> -->
 
 		<!-- 设置弹窗 -->
@@ -219,7 +229,7 @@
 		BallrotateY.value -= inertiaSpeed.value
 
 		// 减速
-		inertiaSpeed.value *= 0.95;
+		inertiaSpeed.value *= 0.90;
 
 		// 停止条件
 		if (Math.abs(inertiaSpeed.value) < 0.1) {
@@ -348,7 +358,6 @@
 	// 		environmentData.value[0].value = `${data.temperature}°C`;
 	// 		environmentData.value[1].value = `${data.humidity}%`;
 	// 		environmentData.value[2].value = `${data.co2}ppm`;
-
 	// 		// 检查阈值
 	// 		checkThresholds(data);
 	// 	} catch (error) {
@@ -413,11 +422,16 @@
 			clean: true,
 			protocolVersion: 4,
 		},
-		topic: 'Goose' ,// 订阅的主题名
-		settopic: 'Num'
+		topic: 'Goose', // 订阅的主题名
+		fanTopic: 'Fum',
+		winTopic: 'Num',
+		tempTopic: 'Wum',
+		humTopic: 'Hum',
+		lightTopic: 'Dum'
+
 	}
-	
-	
+
+
 	// 响应式数据
 	const deviceStatus = ref('连接中...')
 	const updateTime = ref('从未更新') // 新增：用于记录数据更新时间
@@ -433,7 +447,7 @@
 		disconnectMQTT()
 	})
 
-	// MQTT初始化
+	// MQTT初始化_________________________________________________________________________________
 	const initMQTT = () => {
 		client.value = mqtt.connect(config.url, config.options)
 
@@ -490,6 +504,38 @@
 		}
 	}
 
+	// 新增发送消息方法
+	const sendMessage = (sendTopic, message) => {
+		console.log(`进入了发送函数`)
+		if (!client.value || !client.value.connected) {
+			deviceStatus.value = '未连接，无法发送'
+			return
+		}
+		console.log(`通过了校验可以发送`)
+		const payload = {
+			// value: Math.floor(Math.random() * 100) // 示例：发送随机数
+			// 这里可以添加更多需要传输的数据字段
+			value: message
+		}
+		console.log(`发送的目标是：${sendTopic}`)
+		console.log(`准备的数据是${payload.value}`)
+		client.value.publish(
+			sendTopic,
+			// config.tempTopic,
+			JSON.stringify(payload.value), {
+				qos: 1
+			},
+			(err) => {
+				if (err) {
+					console.error('发送失败:', err)
+					deviceStatus.value = '发送失败'
+				} else {
+					deviceStatus.value = '消息已发送'
+					console.log('消息发送成功:', payload)
+				}
+			}
+		)
+	}
 
 
 
@@ -498,37 +544,58 @@
 
 	// 洒水器状态
 	const equip = ref([{
-		title: '智能除氨气',
-		isOpen: false,
-		type: 'offon'
-	},
-	{
-		title: '通风透气',
-		isOpen: false,
-		type: 'offon'
-	},
-	{
-		title: '鹅棚保暖',
-		isOpen: false,
-		value: 25,
-		type: 'set'
-	},
-	{
-		title:'雾化降温',
-		isOpen: false,
-		value: 25,
-		type: 'set'
-	}
+			title: '智能除氨气',
+			isOpen: false,
+			type: 'set',
+			value: 1,
+			colorClass: 'redlet',
+			colorClass2: 'redlet',
+			topicname: config.fanTopic,
+		},
+		{
+			title: '通风透气',
+			isOpen: false,
+			type: 'offon',
+			colorClass: 'redlet',
+			colorClass2: 'redlet',
+			topicname: config.winTopic,
+
+		},
+		{
+			title: '鹅棚保暖',
+			isOpen: false,
+			value: 25,
+			type: 'set',
+			colorClass: 'redlet',
+			colorClass2: 'redlet',
+			topicname: config.tempTopic
+		},
+		{
+			title: '雾化降温',
+			isOpen: false,
+			value: 25,
+			type: 'set',
+			colorClass: 'redlet',
+			colorClass2: 'redlet',
+			topicname: config.humTopic
+		},
+		{
+			title: '智能监控模式',
+			isOpen: isAnimating,
+			type: 'no',
+			colorClass: 'redlet',
+			colorClass2: 'redlet'
+		},
 	]);
 
 	// 切换手动模式
 	// Composition API 写法
 
-	
+
 	const toggleMode = (event, index) => {
 		const newValue = event.detail.value;
 		modules.value[index].value = newValue;
-		isAutoMode.value = newValue;
+		isAutoMode.value = newValue; 
 
 	};
 
@@ -538,6 +605,14 @@
 		// 这里可以调用后端接口控制洒水器
 		console.log(`洒水器已${isSprinklerOn.value ? '启动' : '关闭'}`);
 	};
+
+	const handleConfirm = (myTopic) => {
+		const jsonDate = {
+			"sunlimit": 250,
+			"fan": "off"
+		};
+		sendMessage(myTopic, jsonDate);
+	}
 
 	const modules = ref([{
 			title: '智能监控模式',
@@ -589,8 +664,8 @@
 	const showActions = ref(false);
 
 	const selectedModuleIndex = ref(-1); //选择的模块
-	const choiceModudle = ref(-1);
-	
+	const choiceModudle = ref([]);
+
 	const startAnimation = (index) => {
 		// 阻止模式切换框的点击反应
 		selectedModuleIndex.value = index;
@@ -608,9 +683,12 @@
 		}
 
 		if (isAnimating.value) return;
-		// choiceModudle.value = equip.value.filter(item => item.title === modules.value[index].title)
-		// choiceModudle = computed(() => equip.value[index]);
+		choiceModudle.value = equip.value.filter(item => item.title === modules.value[index].title)
+		// choiceModudle.value = computed(() => equip.value[index]);
 		console.log(choiceModudle.value);
+		console.log(
+			`测试具体值：isOpen=${choiceModudle.value[0].isOpen};title=${choiceModudle.value[0].title};type=${choiceModudle.value[0].type}`
+		)
 		isAnimating.value = true;
 
 		// 按钮延迟出现
@@ -619,10 +697,153 @@
 		}, modules.value.length * 50 + 200);
 	};
 
+	const offOnEquip = (item) => {
+		// const eqindex = 0;
+		// for (const item of equip.value) {
+		// 	if (item.title === equip.value[eqindex].title) {
+		// 		break;
+		// 	}
+		// 	console.log(`for`)
+		// 	eqindex++;
+		// }
+		// equip.value[eqindex].isOpen = !equip.value[eqindex].isOpen;
+		item.isOpen = !item.isOpen;
+		if(item.type === 'set'){
+			console.log(`可以发送消息`)
+			const jsonDate = {
+				"status": item.isOpen ? "on" : "off",
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}else if(item.type === 'offon'){
+			console.log(`可以发送消息`)
+			const jsonDate = {
+				"status": item.isOpen ? "on" : "off",
+				
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了：${item.title}且index=`)
+		// console.log(`当前${item.title}开关情况为：eq:${equip.value[0].title}是${equip.value[0].isOpen},item:${item.isOpen}`)
+		// console.log(`当前${item.title}开关情况为：eq:${equip.value[1].title}是${equip.value[1].isOpen},item:${item.isOpen}`)
+	}
+
+	const upTemp = (item) => {
+		item.value++;
+		if (item.isOpen) {
+			console.log(`可以发送消息`)
+			const jsonDate = {
+				"status": item.isOpen ? "on" : "off",
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了${item.title}的升温`)
+	}
+
+	const downTemp = (item) => {
+		item.value--;
+		if (item.isOpen) {
+			const jsonDate = {
+				"status": item.isOpen ? "on" : "off",
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了${item.title}的降温`)
+	}
+
+	const upGrade = (item) => {
+		if(item.value >= 4){
+			uni.showToast({
+				title: '已到最高档位',
+				icon: 'none',
+				duration: 1500
+			});
+			item.value = 4;
+			return;
+		}
+		item.value++;
+		if (item.isOpen) {
+			console.log(`可以发送消息`)
+			const jsonDate = {
+				"status": item.isOpen ? "on" : "off",
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了${item.title}的升温`)
+	}
+	
+	const downGrade = (item) => {
+		if(item.value <= 1){
+			uni.showToast({
+				title: '已到最低档位',
+				icon: 'none',
+				duration: 1500
+			});
+			item.value = 1;
+			return;
+		}
+		item.value--;
+		if (item.isOpen) {
+			const jsonDate = {
+				"status": item.isOpen ? "on" : "off",
+				"grade": item.value
+			};
+			sendMessage(item.topicname, jsonDate);
+		}
+		console.log(`点击了${item.title}的降温`)
+	}
+	
+	const isAutoRun = () => {
+		return modules.value[0].value;
+	}
+
+	const findEquipByTitle = (title) => {
+		for (const item of equip.value) {
+			if (item.title === title) {
+				return item;
+			}
+		}
+		return null; // 未找到时返回 null
+	}
+
+	// 检查开关并更新提示
+	// const checkisOpen = (equip) => {
+	// 	// environmentData.value[0].colorClass = getColorClass(data.temperature, thresholds.value.temperature);
+	// 	// environmentData.value[1].colorClass = getColorClass(data.humidity, thresholds.value.humidity);
+	// 	// environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.co2);
+	// 	equip.value[0].colorClass = equipGetColorClass()
+
+	// };
+
+	// 根据阈值获取颜色
+	// const equipGetColorClass = (value, threshold) => {
+	// 	if (value < threshold.min || value > threshold.max) {
+	// 		return 'energy-ball-warning'; // 超出阈值显示红色
+	// 	}
+	// 	return 'energy-ball-normal'; // 正常范围内显示绿色
+	// };
+
 	const resetAnimation = () => {
 		isAnimating.value = false;
 		showActions.value = false;
-	};
+	}
+	
+	const isLightOn = ref(false)
+	const offonLight = () =>{
+		isLightOn.value = !isLightOn.value;
+		const jsonDate = {
+			"light_btn": isLightOn.value ? "on" : "off",
+		};
+		sendMessage(config.lightTopic, jsonDate);
+		uni.showToast({
+			title: isLightOn.value ? '已开灯' : '已关灯',
+			icon: 'none',
+			duration: 1500
+		});
+	}
 </script>
 <style lang="scss">
 	.container {
@@ -641,6 +862,12 @@
 		position: absolute;
 		top: 20px;
 		left: 20px;
+		z-index: 10;
+	}
+	.lightBtn{
+		position: absolute;
+		top: 20px;
+		right: 20px;
 		z-index: 10;
 	}
 
@@ -862,6 +1089,24 @@
 		right: 24rpx;
 	}
 
+	.greenlet {
+		background-color: #2E7D32;
+		background: #2E7D32;
+	}
+
+	.redlet {
+		background-color: #FF5252;
+		background: #FF5252;
+	}
+
+	.bluelet {
+		background: blue;
+	}
+
+	.graylet {
+		background: #e9ecef;
+	}
+
 	.module-item {
 		transform: translateY(0);
 		display: flex;
@@ -890,10 +1135,11 @@
 			margin-right: 32rpx;
 
 			.icon-placeholder {
-				width: 48rpx;
-				height: 48rpx;
-				background: #e9ecef;
-				border-radius: 8rpx;
+				width: 25rpx;
+				height: 25rpx;
+				// background: #e9ecef;
+				// background: #2E7D32;
+				border-radius: 50%;
 			}
 		}
 
@@ -910,22 +1156,24 @@
 			font-size: 40rpx;
 		}
 
-		/* 更新图标样式 */
-		.icon-placeholder {
-			background: rgba(129, 199, 132, 0.1); // 主色10%透明度
-			border: 1rpx solid rgba(129, 199, 132, 0.2);
-		}
+		// /* 更新图标样式 */
+		// .icon-placeholder {
+		// 	background: rgba(129, 199, 132, 0.1); // 主色10%透明度
+		// 	border: 1rpx solid rgba(129, 199, 132, 0.2);
+		// }
 	}
 
 	.action-group {
 		position: fixed;
 		bottom: 0;
 		left: 100%;
-		height: 700rpx;
+		height: 680rpx;
 		width: 100%;
-		padding: 40rpx;
 		background: rgba(255, 255, 255, 0.95);
 		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		display: flex;
+		text-align: center;
+		border-radius: 50rpx;
 
 		&.slide-in {
 			left: 0;
@@ -938,12 +1186,92 @@
 			font-size: 36rpx;
 			color: #66BB6A
 		}
-
-		.confirm-btn {
-			width: 60%;
-			margin: 40rpx auto 0;
-			background: #e63946;
-			color: white;
-		}
+	}
+	
+	.ctr-title {
+	  position: absolute;
+	  top: 80rpx; /* 留出返回按钮空间 */
+	  left: 50%;
+	  transform: translateX(-50%);
+	  font-size: 36rpx;
+	  color: #333;
+	  width: 100%;
+	  text-align: center;
+	}
+	
+	/* 通用圆形按钮样式 */
+	.offOnBtn, .setoffOnBtn {
+	  position: absolute;
+	  left: 50%;
+	  transform: translateX(-50%);
+	  width: 150rpx;
+	  height: 150rpx;
+	  border-radius: 50%;
+	  background: #66BB6A;
+	  color: white;
+	  font-size: 36rpx;
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
+	  box-shadow: 0 8rpx 16rpx rgba(102,187,106,0.3);
+	}
+	
+	/* 主开关按钮垂直居中 */
+	.offOnBtn {
+	  top: 50%;
+	  transform: translate(-50%, -50%);
+	}
+	
+	/* 设置数值显示 - 在标题下方 */
+	.setNum {
+	  position: absolute;
+	  top: 180rpx; /* 在标题下方留出间距 */
+	  left: 50%;
+	  transform: translateX(-50%);
+	  font-size: 32rpx;
+	  color: #666;
+	  text-align: center;
+	}
+	.setNum text { /* 突出显示数值 */
+	  font-size: 64rpx;
+	  color: #333;
+	  display: block;
+	  margin-top: 16rpx;
+	}
+	
+	/* 设置模式开关按钮位置 */
+	.setoffOnBtn {
+	  top: 360rpx; /* 在数值显示下方 */
+	}
+	
+	/* 温度/档位控制按钮容器 */
+	.setBtn {
+	  position: absolute;
+	  bottom: 80rpx;
+	  left: 50%;
+	  transform: translateX(-50%);
+	  width: 80%;
+	  display: flex;
+	  justify-content: space-between;
+	}
+	.setBtn button {
+	  width: 200rpx;
+	  height: 80rpx;
+	  border-radius: 40rpx;
+	  background: #f5f5f5;
+	  color: #666;
+	  font-size: 32rpx;
+	  transition: all 0.2s;
+	}
+	.setBtn button:active {
+	  background: #eee;
+	}
+	
+	.iconfont {
+	  font-family: "iconfont" !important;
+	  font-size: 22px;
+	  font-style: normal;
+	  -webkit-font-smoothing: antialiased;
+	  -moz-osx-font-smoothing: grayscale;
 	}
 </style>
