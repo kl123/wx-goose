@@ -8,12 +8,12 @@
 		}
 	},
 	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
-		{
-			"path": "pages/login/login",
-			"style": {
-				"navigationBarTitleText": "登录"
-			}
-		},
+		// {
+		// 	"path": "pages/login/login",
+		// 	"style": {
+		// 		"navigationBarTitleText": "登录"
+		// 	}
+		// },
 
 		{
 			"path": "pages/index/index",
@@ -88,6 +88,12 @@
 			{
 				"navigationBarTitleText" : "喂食计划"
 			}
+		},
+		{
+			"path": "pages/chatai/chat",
+			"style": {
+				"navigationBarTitleText": "智能客服"
+			}
 		}
 	],
 	"globalStyle": {
@@ -126,6 +132,12 @@
 				"iconPath": "/static/icon/养殖管理.png",
 				"selectedIconPath": "/static/icon/养殖管理.png"
 			}
+			// {
+			// 	"text": "投喂",
+			// 	"pagePath": "pages/chatai/chat",
+			// 	"iconPath": "/static/icon/养殖管理.png",
+			// 	"selectedIconPath": "/static/icon/养殖管理.png"
+			// }
 		]
 	}
 }

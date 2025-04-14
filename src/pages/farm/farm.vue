@@ -77,12 +77,17 @@
 				<text v-if="item.isOpen === false">{{item.title}}:未运行</text>
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
-			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)">开启</button>
-			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)">开启</button>
-			<view v-if="item.type === 'set' && item.title !== '优化空气'" class="setNum">设置温度：{{item.value}}</view>
-			<view v-if="item.type === 'set' && item.title !== '优化空气'" class="setBtn">
+			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)" :class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
+			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)" :class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
+			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'"class="setNum">设置温度：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'"class="setBtn">
 				<button @click="upTemp(item)">升温</button>
 				<button @click="downTemp(item)">降温</button>
+			</view>
+			<view v-if="item.type === 'set' && item.title === '雾化增湿'" class="setNum">设置湿度：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title === '雾化增湿'" class="setBtn">
+				<button @click="upTemp(item)">提升湿度</button>
+				<button @click="downTemp(item)">降低湿度</button>
 			</view>
 			<view v-if="item.type === 'set' && item.title === '优化空气'" class="setNum">设置风扇挡位：{{item.value}}</view>
 			<view v-if="item.type === 'set' && item.title === '优化空气'" class="setBtn">
@@ -126,7 +131,7 @@
 					<view class="item">
 						<uni-number-box v-model="thresholds.light.min" :min="0" :max="100"></uni-number-box>
 						<text>至</text>
-						<uni-number-box v-model="thresholds.light.max" :min="0" :max="100"></uni-number-box>
+						<uni-number-box v-model="thresholds.light.max" :min="0" :max="1000"></uni-number-box>
 					</view>
 				</view>
 				<view class="setting-item">
@@ -347,8 +352,8 @@
 
 	// 根据阈值获取颜色
 	const getColorClass = (value, threshold) => {
-		console.log(value)
-		console.log(threshold.min,threshold.max)
+		// console.log(value)
+		// console.log(threshold.min,threshold.max)
 		if (value < threshold.min || value > threshold.max) {
 			return 'energy-ball-warning'; // 超出阈值显示红色
 		}
@@ -600,7 +605,7 @@
 			topicname: config.tempTopic
 		},
 		{
-			title: '雾化降温',
+			title: '雾化增湿',
 			isOpen: false,
 			value: 25,
 			type: 'set',
@@ -661,7 +666,7 @@
 			type: 'arrow'
 		},
 		{
-			title: '雾化降温',
+			title: '雾化增湿',
 			type: 'arrow'
 		}
 	]);
@@ -1253,6 +1258,14 @@
 		align-items: center;
 		justify-content: center;
 		box-shadow: 0 8rpx 16rpx rgba(102, 187, 106, 0.3);
+	}
+	
+	.onBtn{
+		background: #66BB6A;
+	}
+	
+	.offBtn{
+		background: #FF5252; 
 	}
 
 	/* 主开关按钮垂直居中 */
