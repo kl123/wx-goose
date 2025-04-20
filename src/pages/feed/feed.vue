@@ -73,13 +73,14 @@ import mqtt from 'mqtt/dist/mqtt';
 const config = {
   url: 'wxs://bemfa.com:9504/wss',
   options: {
-    clientId: '6fc94297b1a4771e713523fd16d19702',
-    keepalive: 60,
-    clean: true,
-    protocolVersion: 4,
-    reconnectPeriod: 2000,
-    connectTimeout: 8000
-  },
+      clientId: '6fc94297b1a4771e713523fd16d19702',
+      keepalive: 30,  // 从60秒改为30秒更频繁的心跳
+      clean: true,
+      protocolVersion: 4,
+      reconnectPeriod: 1000,  // 更快速重连
+      connectTimeout: 5000,
+      resubscribe: true  // 确保重连后重新订阅
+    },
   foodTopic: 'food',
   waterTopic: 'water',
   leaveTopic: 'leave',
