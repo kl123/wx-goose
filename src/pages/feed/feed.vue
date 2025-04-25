@@ -10,21 +10,23 @@
 
     <!-- 出水/进水控制模块 -->
     <view class="one">
-      <view class="left">
-        <view class="label">出水装置</view>
-        <view class="btn">
-          <button class="open" :class="{ active: outWaterStatus === 'on' }" @click="changeState_out('on')">开</button>
-          <button class="switch" :class="{ active: outWaterStatus === 'off' }" @click="changeState_out('off')">关</button>
+        <view class="left" :style="outWaterStatus === 'on' ? 'background-color: #e6f7ff;' : ''">
+          <image class="control-icon" src="/static/feed/feedWater.png" mode="aspectFit"></image>
+          <view class="label">出水装置</view>
+          <view class="btn">
+            <button class="open" :class="{ active: outWaterStatus === 'on' }" @click="changeState_out('on')">开</button>
+            <button class="switch" :class="{ active: outWaterStatus === 'off' }" @click="changeState_out('off')">关</button>
+          </view>
+        </view>
+        <view class="right" :style="inWaterStatus === 'on' ? 'background-color: #e6f7ff;' : ''">
+          <image class="control-icon" src="/static/feed/喂水区.png" mode="aspectFit"></image>
+          <view class="label">进水装置</view>
+          <view class="btn">
+            <button class="open" :class="{ active: inWaterStatus === 'on' }" @click="changeState_in('on')">开</button>
+            <button class="switch" :class="{ active: inWaterStatus === 'off' }" @click="changeState_in('off')">关</button>
+          </view>
         </view>
       </view>
-      <view class="right">
-        <view class="label">进水装置</view>
-        <view class="btn">
-          <button class="open" :class="{ active: inWaterStatus === 'on' }" @click="changeState_in('on')">开</button>
-          <button class="switch" :class="{ active: inWaterStatus === 'off' }" @click="changeState_in('off')">关</button>
-        </view>
-      </view>
-    </view>
 
     <view class="action-container">
       <view class="action-card" @click="navigateTo('feedFood')">
@@ -371,24 +373,42 @@ onUnmounted(() => {
   margin-top: 15px;
 }
 
+.control-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%; /* 圆形效果 */
+  margin: 0 auto 8px; /* 居中显示 */
+  display: block;
+  background-color: #e6f7ff;
+  padding: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
 .left, .right {
   width: 48%;
   background-color: #f9f9f9;
   border-radius: 8px;
-  padding: 12px;
+  padding: 15px 12px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease; /* 添加过渡效果 */
+}
+
+.left.active-module, .right.active-module {
+  background-color: #e6f7ff;
+  border: 1px solid #1890ff;
 }
 
 .label {
   font-size: 16px;
   font-weight: bold;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   text-align: center;
 }
 
 .btn {
   display: flex;
   justify-content: space-around;
+  width: 100%;
 }
 
 .open, .switch {
@@ -399,17 +419,21 @@ onUnmounted(() => {
   border-radius: 4px;
   border: 1px solid #d9d9d9;
   background-color: #fff;
+  transition: all 0.3s ease;
 }
 
 .open.active {
   background-color: #1890ff;
   color: #fff;
+  border-color: #1890ff;
 }
 
 .switch.active {
   background-color: #ff4d4f;
   color: #fff;
+  border-color: #ff4d4f;
 }
+
 
 .action-container {
   display: flex;
@@ -419,27 +443,26 @@ onUnmounted(() => {
 }
 
 .action-card {
-  width: 28%;
+  width: 90%;
+  height: 80px;
   background-color: #f9f9f9;
   border-radius: 10px;
   padding: 15px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 1 / 1;
+  margin-top: 15px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
 }
 
 .action-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  margin-right: 15px;
 }
 
 .action-name {
-  font-size: 16px;
-  margin-top: 10px;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .disease-card {

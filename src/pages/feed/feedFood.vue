@@ -4,7 +4,6 @@
     <view class="device-info">
       <image class="device-image" src="/static/feed/喂食器皿.png" mode="aspectFit"></image>
     </view>
-
     <!-- 出粮控制区 -->
     <view class="feeding-control">
       <view class="remaining-food" :style="foodStatusStyle">
@@ -71,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { onMounted, onUnmounted } from 'vue';
 import mqtt from 'mqtt/dist/mqtt.js';
@@ -83,7 +82,7 @@ const timeSlots = ref(['00:00', '06:00', '12:00', '18:00', '24:00']);
 const mealAmounts = ref([0, 0, 0, 0, 0]);
 const isFed = ref([false, false, false, false, false]);
 const fedAmounts = ref([0, 0, 0, 0, 0]);
-const isDispensing = ref(false); // 出粮状态
+const isDispensing = ref(false);
 
 // 初始化剩余饲料量
 const storedFood = uni.getStorageSync('foodRemaining');
@@ -110,132 +109,163 @@ const mqttConfig = {
     keepalive: 60,
     clean: true,
     protocolVersion: 4,
-    reconnectPeriod: 1000,
-    connectTimeout: 5000
   },
-  topics: {
-    food: 'food'
-  }
+  topic: 'food'
 };
 
-let mqttClient = ref(null);
+// 响应式数据
+const deviceStatus = ref('连接中...');
+let client = ref(null);
+let reconnectTimer = ref(null);
+let pendingDispense = ref(null); // 跟踪出粮请求
+let lastMessage = ref(null); // 去重记录
 
-const initMQTT = async () => {
-  try {
-    if (typeof mqtt === 'undefined') {
-      throw new Error('MQTT库未正确加载');
-    }
-    
-    if (mqttClient.value && mqttClient.value.connected) {
-      console.log('MQTT已连接，无需重复初始化');
-      return;
-    }
-    
-    mqttClient.value = mqtt.connect(mqttConfig.url, mqttConfig.options);
-    
-    mqttClient.value.on('connect', () => {
-      console.log('✅ MQTT连接成功');
-      uni.showToast({ title: '设备连接成功', icon: 'success', duration: 1000 });
-      
-      mqttClient.value.subscribe(mqttConfig.topics.food, { qos: 1 }, (err) => {
-        if (err) {
-          console.error('订阅food主题失败:', err);
-          uni.showToast({ title: '订阅food主题失败', icon: 'none' });
-        } else {
-          console.log('成功订阅food主题');
-        }
-      });
-    });
-    
-    mqttClient.value.on('message', (topic, message) => {
-      console.log('收到MQTT消息:', topic, message.toString());
-      try {
-        const data = JSON.parse(message.toString());
-        if (topic === mqttConfig.topics.food && data.status === 'on' && data.num) {
-          console.log('收到出粮指令:', data.num);
-        }
-      } catch (error) {
-        console.error('解析MQTT消息失败:', error);
+// 生命周期
+onMounted(() => {
+  initMQTT();
+});
+
+onUnmounted(() => {
+  disconnectMQTT();
+});
+
+const initMQTT = () => {
+  client.value = mqtt.connect(mqttConfig.url, mqttConfig.options);
+
+  client.value.on('connect', () => {
+    deviceStatus.value = '已连接';
+    console.log('✅ MQTT连接成功');
+    client.value.subscribe(mqttConfig.topic, { qos: 1 }, (err) => {
+      if (err) {
+        console.error('订阅food主题失败:', err);
+        uni.showToast({ title: '订阅food主题失败', icon: 'none' });
+      } else {
+        console.log('订阅food主题成功');
       }
     });
+  });
+
+  client.value.on('message', (topic, message) => {
+    const messageStr = message.toString().trim();
+    console.log(`调试: 收到MQTT消息 - 主题: ${topic}, 内容: ${messageStr}`);
     
-    mqttClient.value.on('error', (err) => {
-      console.error('MQTT连接错误:', err);
-      uni.showToast({ title: '设备连接失败', icon: 'none' });
-    });
-    
-    mqttClient.value.on('reconnect', () => {
-      console.log('正在尝试重新连接MQTT...');
-    });
-    
-    mqttClient.value.on('close', () => {
-      console.log('MQTT连接断开');
-    });
-    
-  } catch (error) {
-    console.error('MQTT初始化错误:', error);
-    uni.showToast({ title: 'MQTT初始化失败', icon: 'none' });
-    setTimeout(initMQTT, 3000);
+    if (!messageStr) {
+      console.error('收到空MQTT消息');
+      return;
+    }
+
+    try {
+      const data = JSON.parse(messageStr);
+
+      // 去重检查
+      if (lastMessage.value === messageStr) {
+        console.log('忽略重复消息:', messageStr);
+        return;
+      }
+      lastMessage.value = messageStr;
+
+      // 处理出粮响应
+      if (pendingDispense.value && data.status === 'success' && data.num === -1) {
+        const { inputAmount, resolve } = pendingDispense.value;
+        console.log('handleDispense 收到MQTT响应:', data);
+        resolve({ feedAmount: inputAmount });
+        pendingDispense.value = null;
+      } else if (data.status === 'error') {
+        console.error('硬件错误:', data.message);
+        if (pendingDispense.value) {
+          pendingDispense.value.reject(new Error(data.message || '硬件错误'));
+          pendingDispense.value = null;
+        }
+      }
+    } catch (error) {
+      console.error('解析MQTT消息失败:', error.message, '原始消息:', messageStr);
+    }
+  });
+
+  client.value.on('error', (err) => {
+    deviceStatus.value = '连接异常';
+    console.error('MQTT错误:', err);
+    handleReconnect();
+  });
+
+  client.value.on('close', () => {
+    deviceStatus.value = '连接断开';
+    console.log('MQTT连接断开');
+    handleReconnect();
+  });
+};
+
+const handleReconnect = () => {
+  if (!reconnectTimer.value) {
+    reconnectTimer.value = setInterval(() => {
+      if (!client.value.connected) {
+        deviceStatus.value = '尝试重连...';
+        console.log('尝试重连...');
+        initMQTT();
+      }
+    }, 5000);
   }
 };
 
-const sendFeedCommand = (amount) => {
-  return new Promise((resolve, reject) => {
-    console.log('进入 sendFeedCommand，amount:', amount);
-    if (!mqttClient.value) {
-      console.error('MQTT客户端未初始化');
-      uni.showToast({ title: '设备未初始化', icon: 'none' });
-      reject(new Error('MQTT客户端未初始化'));
-      return;
-    }
-    
-    if (!mqttClient.value.connected) {
-      console.error('MQTT客户端未连接');
-      uni.showToast({ title: '设备未连接', icon: 'none' });
-      reject(new Error('MQTT客户端未连接'));
-      mqttClient.value.reconnect();
-      return;
-    }
-    
-    const command = { num: amount, status: 'on' };
-    
-    console.log('准备发布MQTT消息:', command);
-    const timeout = setTimeout(() => {
-      console.error('MQTT发布超时');
-      uni.showToast({ title: 'MQTT发布超时', icon: 'none' });
-      reject(new Error('MQTT发布超时'));
-      mqttClient.value.reconnect();
-    }, 5000);
-    
-    mqttClient.value.publish(
-      mqttConfig.topics.food,
-      JSON.stringify(command),
+const disconnectMQTT = () => {
+  if (client.value) {
+    client.value.end();
+    client.value = null;
+  }
+  if (reconnectTimer.value) {
+    clearInterval(reconnectTimer.value);
+    reconnectTimer.value = null;
+  }
+};
+
+const sendFeedCommand = (num) => {
+  console.log('进入 sendFeedCommand，num:', num);
+  
+  if (!client.value || !client.value.connected) {
+    deviceStatus.value = '未连接，无法发送';
+    console.log('MQTT客户端未连接，无法发送');
+    uni.showToast({ title: '设备未连接', icon: 'none' });
+    return false;
+  }
+
+  const payload = { num, status: 'on' };
+  console.log(`准备发布MQTT消息: ${JSON.stringify(payload)}`);
+
+  if (client.value.connected) {
+    client.value.publish(
+      mqttConfig.topic,
+      JSON.stringify(payload),
       { qos: 1 },
       (err) => {
-        clearTimeout(timeout);
         if (err) {
-          console.error('MQTT发布失败:', err);
+          console.error('发送失败:', err);
+          deviceStatus.value = '发送失败';
           uni.showToast({ title: '发送指令失败', icon: 'none' });
-          reject(err);
-          mqttClient.value.reconnect();
+          return false;
         } else {
-          console.log('MQTT发布成功:', command);
-          resolve(true);
+          console.log('消息发送成功:', payload);
+          deviceStatus.value = '消息已发送';
+          return true;
         }
       }
     );
-  });
+    return true;
+  } else {
+    console.log('客户端连接已断开，无法发送消息');
+    deviceStatus.value = '连接断开，消息未发送';
+    uni.showToast({ title: '设备未连接', icon: 'none' });
+    return false;
+  }
 };
 
 // 限制输入
 const restrictInput = (event) => {
   let value = event.detail.value;
-  // 只允许正数，保留最多1位小数
-  value = value.replace(/[^0-9.]/g, ''); // 仅数字和.
+  value = value.replace(/[^0-9.]/g, '');
   const parts = value.split('.');
-  if (parts.length > 2) value = parts[0] + '.' + parts[1]; // 最多一个.
-  if (parts[1] && parts[1].length > 1) value = parts[0] + '.' + parts[1].slice(0, 1); // 最多1位小数
-  if (value.startsWith('0') && value.length > 1 && !value.startsWith('0.')) value = value.replace(/^0+/, ''); // 移除前导0
+  if (parts.length > 2) value = parts[0] + '.' + parts[1];
+  if (parts[1] && parts[1].length > 1) value = parts[0] + '.' + parts[1].slice(0, 1);
+  if (value.startsWith('0') && value.length > 1 && !value.startsWith('0.')) value = value.replace(/^0+/, '');
   manualDispenseAmount.value = value;
 };
 
@@ -345,110 +375,92 @@ const goToPlanFoodPage = () => {
 };
 
 const handleDispense = async () => {
-  if (isDispensing.value) return;
-  isDispensing.value = true;
-  
-  console.log('点击立即出粮，输入值:', manualDispenseAmount.value);
-  const inputAmount = parseFloat(manualDispenseAmount.value);
-  
-  if (isNaN(inputAmount) || inputAmount <= 0) {
-    console.log('输入验证失败:', { inputAmount });
-    uni.showToast({ title: '请输入有效的出粮斤数', icon: 'none' });
-    isDispensing.value = false;
+  if (isDispensing.value) {
+    uni.showToast({ title: '出粮进行中，请稍候', icon: 'none', duration: 1500 });
     return;
   }
-  
-  console.log('当前剩余饲料:', foodRemaining.value);
-  if (!Number.isFinite(foodRemaining.value)) {
-    console.error('剩余饲料量无效，重置为1000');
-    foodRemaining.value = 1000;
-    uni.setStorageSync('foodRemaining', 1000);
+
+  const inputAmount = parseFloat(manualDispenseAmount.value);
+  if (!inputAmount || inputAmount <= 0 || isNaN(inputAmount)) {
+    uni.showToast({ title: '请输入有效的正数出粮斤数', icon: 'none', duration: 1500 });
+    return;
   }
 
   if (inputAmount > foodRemaining.value) {
-    console.log('饲料不足:', { inputAmount, remaining: foodRemaining.value });
-    uni.showToast({ 
-      title: `饲料不足 (剩余:${foodRemaining.value} 斤)`, 
+    uni.showToast({
+      title: `饲料不足 (需要: ${inputAmount} 斤, 剩余: ${foodRemaining.value} 斤)`,
       icon: 'none',
       duration: 2000
     });
-    isDispensing.value = false;
     return;
   }
 
   const sendAmount = Math.floor(inputAmount / 100);
-  
+  if (sendAmount <= 0) {
+    uni.showToast({ title: '出粮量过小，至少 100 斤', icon: 'none', duration: 1500 });
+    return;
+  }
+
+  isDispensing.value = true;
+  uni.showLoading({ title: '出粮中...', mask: true });
+
   try {
-    console.log('发送出粮指令:', sendAmount);
-    await sendFeedCommand(sendAmount);
-    
-    console.log('更新状态前:', { manualDispensed: manualDispensed.value, foodRemaining: foodRemaining.value });
-    manualDispensed.value += inputAmount;
-    foodRemaining.value = Math.max(foodRemaining.value - inputAmount, 0);
-    manualDispenseAmount.value = '';
-    
-    if (!Number.isFinite(foodRemaining.value)) {
-      console.error('更新后饲料量无效，重置为0');
-      foodRemaining.value = 0;
-    }
-    
-    uni.setStorageSync('foodRemaining', foodRemaining.value);
-    
-    console.log('发送 updateFood 事件:', { used: inputAmount, remaining: foodRemaining.value });
-    uni.$emit('updateFood', {
-      used: inputAmount,
-      remaining: foodRemaining.value
-    });
-    
-    console.log('出粮成功:', { manualDispensed: manualDispensed.value, foodRemaining: foodRemaining.value });
-    const toastMessage = foodRemaining.value < 200 
-      ? `出粮成功 ${inputAmount} 斤，饲料不足，请补充！`
-      : `出粮成功 ${inputAmount} 斤`;
-    uni.showToast({ 
-      title: toastMessage,
-      icon: 'success',
-      duration: 1500
-    });
-    
-  } catch (error) {
-    console.error('出粮流程错误:', error.message);
-    if (error.message.includes('MQTT')) {
-      console.log('更新状态前:', { manualDispensed: manualDispensed.value, foodRemaining: foodRemaining.value });
-      manualDispensed.value += inputAmount;
-      foodRemaining.value = Math.max(foodRemaining.value - inputAmount, 0);
-      manualDispenseAmount.value = '';
-      
-      if (!Number.isFinite(foodRemaining.value)) {
-        console.error('更新后饲料量无效，重置为0');
-        foodRemaining.value = 0;
+    if (!client.value.connected) {
+      console.log('MQTT客户端未连接，尝试重连');
+      initMQTT();
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!client.value.connected) {
+        throw new Error('MQTT客户端无法连接');
       }
-      
-      uni.setStorageSync('foodRemaining', foodRemaining.value);
-      
-      console.log('发送 updateFood 事件:', { used: inputAmount, remaining: foodRemaining.value });
-      uni.$emit('updateFood', {
-        used: inputAmount,
-        remaining: foodRemaining.value
-      });
-      
-      console.log('出粮成功（MQTT失败）:', { manualDispensed: manualDispensed.value, foodRemaining: foodRemaining.value });
-      const toastMessage = foodRemaining.value < 200 
-        ? `出粮成功 ${inputAmount} 斤 (设备离线)，饲料不足，请补充！`
-        : `出粮成功 ${inputAmount} 斤 (设备离线)`;
-      uni.showToast({ 
-        title: toastMessage,
-        icon: 'success',
-        duration: 1500
-      });
-    } else {
-      uni.showToast({
-        title: '出粮失败: ' + error.message,
-        icon: 'none',
-        duration: 2000
-      });
     }
-  } finally {
+
+    const sent = sendFeedCommand(sendAmount);
+    if (!sent) {
+      throw new Error('发送指令失败');
+    }
+
+    const { feedAmount } = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        console.error('MQTT响应超时');
+        pendingDispense.value = null;
+        reject(new Error('MQTT响应超时'));
+      }, 20000); // 延长超时时间到 20 秒
+
+      pendingDispense.value = {
+        inputAmount,
+        resolve: (result) => {
+          clearTimeout(timeout);
+          resolve(result);
+        },
+        reject: (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      };
+    });
+
+    manualDispensed.value += feedAmount;
+    foodRemaining.value = Math.max(foodRemaining.value - feedAmount, 0);
+    manualDispenseAmount.value = '';
+    uni.setStorageSync('foodRemaining', foodRemaining.value);
+    uni.$emit('updateFood', { used: feedAmount, remaining: foodRemaining.value });
+
+    uni.hideLoading();
     isDispensing.value = false;
+    uni.showToast({
+      title: `出粮成功 ${feedAmount} 斤${foodRemaining.value < 200 ? '，饲料不足，请补充！' : ''}`,
+      icon: 'success',
+      duration: 2000
+    });
+  } catch (error) {
+    uni.hideLoading();
+    isDispensing.value = false;
+    uni.showToast({
+      title: `出粮失败: ${error.message || '网络或设备错误'}`,
+      icon: 'none',
+      duration: 2000
+    });
+    console.error('出粮指令发送失败:', error);
   }
 };
 
@@ -467,8 +479,11 @@ const handleFeedIconClick = async (index) => {
     
     try {
       console.log('发送定时出粮指令:', 1);
-      await sendFeedCommand(1);
-      
+      const sent = sendFeedCommand(1);
+      if (!sent) {
+        throw new Error('发送指令失败');
+      }
+
       fedAmounts.value[index] += feedAmount;
       if (fedAmounts.value[index] >= mealAmounts.value[index] * 100) {
         isFed.value[index] = true;
@@ -500,43 +515,11 @@ const handleFeedIconClick = async (index) => {
       });
     } catch (error) {
       console.error('定时出粮流程错误:', error.message);
-      if (error.message.includes('MQTT')) {
-        fedAmounts.value[index] += feedAmount;
-        if (fedAmounts.value[index] >= mealAmounts.value[index] * 100) {
-          isFed.value[index] = true;
-        }
-        
-        foodRemaining.value = Math.max(foodRemaining.value - feedAmount, 0);
-        
-        if (!Number.isFinite(foodRemaining.value)) {
-          console.error('更新后饲料量无效，重置为0');
-          foodRemaining.value = 0;
-        }
-        
-        uni.setStorageSync('foodRemaining', foodRemaining.value);
-        
-        console.log('发送 updateFood 事件:', { used: feedAmount, remaining: foodRemaining.value });
-        uni.$emit('updateFood', {
-          used: feedAmount,
-          remaining: foodRemaining.value
-        });
-        
-        console.log('定时出粮成功（MQTT失败）:', { feedAmount, foodRemaining: foodRemaining.value });
-        const toastMessage = foodRemaining.value < 200 
-          ? `定时出粮 ${feedAmount} 斤 (设备离线)，饲料不足，请补充！`
-          : `定时出粮 ${feedAmount} 斤 (设备离线)`;
-        uni.showToast({ 
-          title: toastMessage,
-          icon: 'success',
-          duration: 1500
-        });
-      } else {
-        uni.showToast({
-          title: '出粮失败: ' + error.message,
-          icon: 'none',
-          duration: 2000
-        });
-      }
+      uni.showToast({
+        title: '出粮失败: ' + error.message,
+        icon: 'none',
+        duration: 2000
+      });
     }
   } else {
     console.log('时间点已喂食:', index);
@@ -577,16 +560,6 @@ onShow(() => {
   uni.setStorageSync('foodRemaining', foodRemaining.value);
   resetDailyData();
 });
-
-onMounted(() => {
-  initMQTT();
-});
-
-onUnmounted(() => {
-  if (mqttClient.value && mqttClient.value.connected) {
-    mqttClient.value.end();
-  }
-});
 </script>
 
 <style scoped>
@@ -595,7 +568,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 20px;
-  padding-bottom: 100px;
+  padding-bottom: 80px;
 }
 
 .device-info {
@@ -721,13 +694,15 @@ onUnmounted(() => {
   background-color: #fff;
   border-radius: 10px 10px 0 0;
   box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+  height: 60px;
 }
 
 .action-button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px;
+  padding: 6px;
   transition: opacity 0.3s;
 }
 
@@ -737,14 +712,14 @@ onUnmounted(() => {
 }
 
 .action-icon {
-  width: 45px;
-  height: 45px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .action-text {
-  font-size: 14px;
+  font-size: 12px;
   color: #333;
 }
 </style>
