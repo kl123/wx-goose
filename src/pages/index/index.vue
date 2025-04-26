@@ -1,310 +1,229 @@
 <template>
-  <view class="container">
-    <!-- 固定搜索栏 -->
-    <view class="fixed-top">
-      <uni-search-bar 
-        @confirm="search" 
-        :focus="true" 
-        v-model="searchValue" 
-        @blur="blur" 
-        @focus="focus" 
-        @input="input"
-        @cancel="cancel" 
-        @clear="clear"
-        placeholder="请输入搜索内容">
-      </uni-search-bar>
+  <view class="one">
+    <view :class="['left', { 'border-on': outWaterStatus === 'on' }]">
+	  <image src="/src/static/feed/排水.png" style="height: 80px;width: 80px;"></image>
+      <view class="label">排水装置</view>
+      <view class="btn">
+        <button class="open" @click="changeState_out('on')">开</button>
+        <button class="switch" @click="changeState_out('off')">关</button>
+      </view>
     </view>
-
-    <!-- 分类栏 -->
-    <scroll-view class="category-scroll" scroll-x="true">
-      <view 
-        class="category-item" 
-        v-for="(category, index) in categories" 
-        :key="index"
-        :class="{ 'active': activeCategory === index }"
-        @tap="selectCategory(index)">
-        {{ category }}
+    <view :class="['right', { 'border-in': inWaterStatus === 'on' }]">
+		<image src="/src/static/feed/进水.png" style="height: 80px;width: 80px;"></image>
+      <view class="label">进水装置</view>
+      <view class="btn">
+        <button class="open" @click="changeState_in('on')">开</button>
+        <button class="switch" @click="changeState_in('off')">关</button>
       </view>
-      <view class="category-item more" @click="goToCategoryPage">
-        更多
-      </view>
-    </scroll-view>
-
-    <!-- 可滑动内容区域 -->
-    <scroll-view class="content-scroll" scroll-y="true">
-      
-      <!-- 轮播图 -->
-      <swiper 
-        class="banner-swiper" 
-        :autoplay="true" 
-        :interval="3000" 
-        :duration="500" 
-        circular="true"
-        indicator-dots="true"
-        indicator-color="rgba(255, 255, 255, 0.5)"
-        indicator-active-color="#00bcd4"
-      >
-        <swiper-item v-for="(item, index) in bannerList" :key="index">
-          <image class="banner-image" :src="item" mode="aspectFill"></image>
-        </swiper-item>
-      </swiper>
-
-      <!-- 功能区 -->
-      <view class="function-area">
-        <view class="function-item" v-for="(item, index) in functionItems" :key="index">
-          <image class="function-icon" :src="item.icon" mode="aspectFill"></image>
-          <text class="function-text">{{ item.text }}</text>
-        </view>
-      </view>
-
-      <!-- 商品列表 -->
-      <view class="product-list">
-        <view class="product-item" v-for="(product, index) in filteredProducts" :key="index" @tap="onGoToGoodsPage">
-          <image class="product-image" :src="product.image" mode="aspectFill"  ></image>
-          <view class="product-info">
-            <text class="product-name">{{ product.description }}</text>
-            <br/>
-            <text class="product-price">￥{{ product.price }}</text>
-          </view>
-        </view>
-      </view>
-    </scroll-view>
+    </view>
   </view>
 </template>
 
 <script setup>
-import { onLoad } from '@dcloudio/uni-app';
-import { ref, computed } from 'vue';
-import { getProductListAPI } from '../../services/goods';
+  import { ref, onMounted, onUnmounted } from 'vue';
+	import mqtt from 'mqtt/dist/mqtt';
+  // 用于绑定开关状态
+  const outWaterStatus = ref("off"); // 出水装置的开关状态
+  const inWaterStatus = ref("off");  // 进水装置的开关状态
 
-// 搜索栏相关逻辑
-const searchValue = ref('');
-const search = () => {
-  console.log('搜索:', searchValue.value);
-  // 预留搜索接口
-};
-const blur = () => console.log('失去焦点');
-const focus = () => console.log('获得焦点');
-const input = () => console.log('输入中');
-const cancel = () => {
-  searchValue.value = '';
-  console.log('取消搜索');
-};
-const clear = () => {
-  searchValue.value = '';
-  console.log('清空搜索');
-};
-
-// 分类数据
-const categories = ref(['推荐', '热门分类1', '热门分类2', '鞋类', '手表', '包']);
-const activeCategory = ref(0);
-
-// 商品数据
-const products = ref([]
-//   [
-//   { name: '李宁赤兔8PRO蛇年限', price: '89', image: "/static/logo.png", category: '推荐' },
-//   { name: 'X3COMMUNE瓦罗兰特RO', price: '182', image: '/static/goose.jpg', category: '推荐' },
-//   { name: '运动鞋', price: '120', image: '/static/product3.jpg', category: '鞋类' },
-//   { name: '智能手表', price: '299', image: '/static/product4.jpg', category: '手表' },
-//   { name: '背包', price: '150', image: '/static/product5.jpg', category: '包' },
-//   // 更多商品...
-// ]
-);
-
-// 功能区数据
-const functionItems = ref([
-      { icon: '/static/icon/有奖签到.png', text: '每日签到' },
-      { icon: '/static/icon/折扣.png', text: '疯狂折扣' },
-      { icon: '/static/icon/领券中心.png', text: '天天领券' },
-      { icon: '/static/icon/积分兑换.png', text: '积分兑换' },
-      { icon: '/static/icon/品牌专区.png', text: '品牌专区' }
-    ]);
-
-// 轮播图数据
-const bannerList = ref([
-  '/static/logo.png',
-  '/static/goose.jpg',
-]);
-
-// 根据选中的分类过滤商品
-const filteredProducts = computed(() => {
-  if (activeCategory.value === 0) {
-    return products.value;
+  function changeState_out(status) {
+    outWaterStatus.value = status;
+    console.log(outWaterStatus.value);
+    sendWaterStatusMessage(outWaterStatus.value, inWaterStatus.value);
   }
-  const categoryName = categories.value[activeCategory.value];
-  return products.value.filter(product => product.category === categoryName);
-});
 
-// 选择分类
-const selectCategory = (index) => {
-  activeCategory.value = index;
-};
+  function changeState_in(status) {
+    inWaterStatus.value = status;
+    console.log(inWaterStatus.value);
+    sendWaterStatusMessage(outWaterStatus.value, inWaterStatus.value);
+  }
 
-// 跳转到分类页面
-const goToCategoryPage = () => {
-  uni.navigateTo({
-    url: '/pages/category/index'
+  // 巴法云配置（需替换为实际参数）
+  const config = {
+    url: 'wxs://bemfa.com:9504/wss', // 微信小程序必须用wx协议头
+    options: {
+      clientId: '6fc94297b1a4771e713523fd16d19702', // 从巴法云控制台获取
+      keepalive: 60, // 心跳间隔
+      clean: true,
+      protocolVersion: 4,
+    },
+    topic: 'water', // 订阅的主题名，修改为 'water'
+  };
+
+  // 响应式数据
+  const deviceStatus = ref('连接中...');
+  const updateTime = ref('从未更新'); // 新增：用于记录数据更新时间
+  let client = ref(null);
+  let reconnectTimer = ref(null);
+
+  // 生命周期
+  onMounted(() => {
+    initMQTT();
   });
-};
 
-// 跳转到商品详情页
-const onGoToGoodsPage = () => {
-  uni.navigateTo({
-    url: '/pages/goods/goods'
+  onUnmounted(() => {
+    disconnectMQTT();
   });
+
+  const initMQTT = () => {
+    client.value = mqtt.connect(config.url, config.options);
+
+    // 连接成功
+    client.value.on('connect', () => {
+      deviceStatus.value = '已连接';
+      client.value.subscribe(config.topic, {
+        qos: 1,
+      }, (err) => {
+        if (err) {
+          console.error('订阅失败:', err);
+        } else {
+          console.log('订阅成功');
+        }
+      });
+    });
+
+    // 接收消息
+    client.value.on('message', (topic, message) => {
+      const result = JSON.parse(message);
+      if (result.status1 != undefined) {
+        outWaterStatus.value = result.status1; // 更新出水装置状态
+      }
+      if (result.status2 != undefined) {
+        inWaterStatus.value = result.status2; // 更新进水装置状态
+      }
+      console.log('收到数据:', result); // 可以在控制台查看收到的消息
+    });
+
+    // 错误处理
+    client.value.on('error', (err) => {
+      deviceStatus.value = '连接异常';
+      console.error('MQTT错误:', err);
+      handleReconnect();
+    });
+  };
+
+const handleReconnect = () => {
+  if (!reconnectTimer.value) {
+    reconnectTimer.value = setInterval(() => {
+      if (!client.value.connected) {
+        deviceStatus.value = '尝试重连...';
+        console.log('尝试重连...');
+        initMQTT();  // 尝试重新连接
+      }
+    }, 5000);
+  }
 };
 
-const getProductList =async () => {
-    const res = await getProductListAPI();
-    console.log(res);
-    products.value = res.data;
-}
 
-onLoad(() => {
-  getProductList()  
-})
+  // 断开连接
+  const disconnectMQTT = () => {
+    if (client.value) {
+      client.value.end();
+      client.value = null;
+    }
+    if (reconnectTimer.value) {
+      clearInterval(reconnectTimer.value);
+      reconnectTimer.value = null;
+    }
+  };
+
+  // 向主题发送消息方法
+  const sendWaterStatusMessage = (status_1, status_2) => {
+    console.log('进入了发送函数');
+    
+    // 如果客户端未连接，先输出日志并返回
+    if (!client.value || !client.value.connected) {
+      deviceStatus.value = '未连接，无法发送';
+      console.log('MQTT 客户端未连接，无法发送');
+      return;
+    }
+  
+    const payload = {
+      status1: status_1, // 出水装置状态
+      status2: status_2, // 进水装置状态
+    };
+    
+    console.log(`发送的目标是：${config.topic}`);
+    console.log(`准备的数据是：${JSON.stringify(payload)}`);
+  
+    // 在发布之前再做一次连接状态检查
+    if (client.value.connected) {
+      client.value.publish(
+        config.topic,
+        JSON.stringify(payload),
+        { qos: 1 },
+        (err) => {
+          if (err) {
+            console.error('发送失败:', err);
+            deviceStatus.value = '发送失败';
+            console.log('错误详细:', err);
+          } else {
+            deviceStatus.value = '消息已发送';
+            console.log('消息发送成功:', payload);
+          }
+        }
+      );
+    } else {
+      console.log('客户端连接已断开，无法发送消息');
+      deviceStatus.value = '连接断开，消息未发送';
+    }
+  };
+
+
 </script>
 
 <style scoped>
-.container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
+  .one {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    height: 200px;
+  }
 
-.fixed-top {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background-color: #fff;
-  z-index: 1000;
-  padding-bottom: 10px; /* 为分类栏留出空间 */
-}
+  .left, .right {
+    width: 48%;
+    height: 100%;
+    background-color: #f0f0f0; /* 修改为浅灰色 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+	transition: border 0.3s ease;  /* 平滑过渡效果 */
+  }
+  .left.border-on {
+    border: 2px solid #00ff00;  /* 边框颜色设置为绿色 */
+	background-color: #e6ffe6;
+  }
+  .right.border-in{
+	border: 2px solid #00ff00;  /* 边框颜色设置为绿色 */
+	background-color: #e6ffe6;
+  }
 
-.category-scroll {
-  white-space: nowrap;
-  padding: 10px 0;
-  background-color: #fff;
-  border-bottom: 1px solid #eee;
-  width: 100%; /* 确保宽度占满 */
-  overflow: hidden; /* 防止内容溢出 */
-  position: fixed;
-  top: 50px; /* 根据搜索栏高度调整 */
-  left: 0;
-  right: 0;
-  z-index: 999; /* 确保分类栏在内容上方 */
-}
+  .label {
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #333;
+  }
 
-.category-item {
-  display: inline-block;
-  margin-top: 2px;
-  padding: 0 15px;
-  font-size: 14px;
-  color: #333;
-  position: relative;
-  transition: font-size 0.3s ease;
-  white-space: nowrap; /* 防止文字换行 */
-}
+  .open {
+    height: 40px;
+    width: 80px;
+    border-radius: 5px;
+    border: 1px #cfe8fc solid;
+    margin-right: 10px;
+  }
 
-.category-item.active {
-  font-size: 16px;
-  font-weight: bold;
-  color: #000;
-}
+  .switch {
+    height: 40px;
+    width: 80px;
+    border-radius: 5px;
+    border: 1px #cfe8fc solid;
+  }
 
-.category-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: -5px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 3px; /* 加粗小横线 */
-  background-color: #00bcd4; /* 青色 */
-  border-radius: 2px; /* 圆角效果 */
-}
-
-.category-item.more {
-  color: #00bcd4;
-}
-
-.content-scroll {
-  flex: 1;
-  margin-top: 100px; /* 根据搜索栏和分类栏高度调整 */
-}
-
-/* 轮播图样式 */
-.banner-swiper {
-  width: 100%;
-  height: 200px; /* 固定高度 */
-  margin-bottom: 10px; /* 与下方内容的间距 */
-}
-
-.banner-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 8px; /* 圆角 */
-}
-
-.product-list {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 10px;
-}
-
-.product-item {
-  width: 48%;
-  margin: 1%;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.product-image {
-  width: 100%;
-  height: 150px;
-}
-
-.product-info {
-  padding: 10px;
-}
-
-.product-name {
-  font-size: 14px;
-  color: #333;
-}
-
-.product-price {
-  font-size: 16px;
-  color: #e4393c;
-  font-weight: bold;
-}
-
-/* 功能区样式 */
-.function-area {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-around;
-  align-items: center;
-  padding: 20px 0;
-  background-color: #ffffff;
-}
-
-.function-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.function-icon {
-  width: 40px;
-  height: 40px;
-  margin-bottom: 8px;
-}
-
-.function-text {
-  font-size: 12px;
-  color: #333;
-}
+  .btn {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
 </style>

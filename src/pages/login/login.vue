@@ -1,7 +1,7 @@
 <template>
   <view class="container">
     <!-- Logo区域 -->
-    <image class="logo" src="/static/logo.png" mode="aspectFit" />
+    <image class="logo" src="/static/logo1.png" mode="aspectFit" />
 
     <!-- 登录方式切换 -->
     <view class="login-type">

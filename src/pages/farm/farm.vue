@@ -77,6 +77,7 @@
 				<text v-if="item.isOpen === false">{{item.title}}:未运行</text>
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
+
 			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)"
 				:class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
 			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)"
@@ -84,6 +85,7 @@
 			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'" class="setNum">
 				设置温度：{{item.value}}</view>
 			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'" class="setBtn">
+
 				<button @click="upTemp(item)">升温</button>
 				<button @click="downTemp(item)">降温</button>
 			</view>
