@@ -77,10 +77,13 @@
 				<text v-if="item.isOpen === false">{{item.title}}:未运行</text>
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
-			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)" :class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
-			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)" :class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
-			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'"class="setNum">设置温度：{{item.value}}</view>
-			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'"class="setBtn">
+			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)"
+				:class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
+			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)"
+				:class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
+			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'" class="setNum">
+				设置温度：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'" class="setBtn">
 				<button @click="upTemp(item)">升温</button>
 				<button @click="downTemp(item)">降温</button>
 			</view>
@@ -467,7 +470,7 @@
 	const mockData = {
 		temperature: 25, // 温度
 		humidity: 55, // 湿度
-		co2: 800 ,// CO2浓度
+		co2: 800, // CO2浓度
 		light_intensity: 100,
 		airQuality: 100
 	};
@@ -494,7 +497,7 @@
 			environmentData.value[3].value = `${result.airQuality}`
 
 			environmentData.value[4].value = `${result.co2}ppm`
-			
+
 			mockData.temperature = result.temperature;
 			mockData.humidity = result.humidity;
 			mockData.light_intensity = result.light_intensity;
@@ -630,8 +633,35 @@
 		const newValue = event.detail.value;
 		modules.value[index].value = newValue;
 		isAutoMode.value = newValue;
-
+		const isauto = newValue ? true : false;
+		console.log(`The auto act is ${isauto}`)
+		autoact(isauto)
+		
+		
 	};
+	
+	const autoact = async (isauto) => {
+		try{
+			const postData = {
+				auto: isauto
+			}
+			console.log(`The post json is:${postData}`)
+			const res = await uni.request({
+			url: 'http://localhost:8084/wechat/BaFa/reviseAuto', // 替换为实际域名
+			method: 'POST',
+			header: {
+				'content-type': 'application/json'
+			},
+			data: JSON.stringify(postData)
+		});
+		}catch(err) {
+			uni.showToast({
+				title: '数据加载失败',
+				icon: 'none'
+			});
+			console.error('请求异常:', err);
+		}
+	}
 
 	// 切换洒水器状态
 	const toggleSprinkler = () => {
@@ -1259,13 +1289,13 @@
 		justify-content: center;
 		box-shadow: 0 8rpx 16rpx rgba(102, 187, 106, 0.3);
 	}
-	
-	.onBtn{
+
+	.onBtn {
 		background: #66BB6A;
 	}
-	
-	.offBtn{
-		background: #FF5252; 
+
+	.offBtn {
+		background: #FF5252;
 	}
 
 	/* 主开关按钮垂直居中 */

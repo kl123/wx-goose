@@ -11,14 +11,13 @@
 			<view v-if="!isget" class="img-notice"> 点击获取查看当前鹅厂状况</view>
 			<view v-if="isget" class="img-loading"> 请稍后……</view>
 
-			<view>
-				<!-- 图片列表 -->
+			<!-- <view>
 				<block v-for="(item, index) in imgList" :key="index" class="image-gallery">
 					<image :src="item.url" mode="aspectFill" class="result-image" 
 						@click="clickImg({ currentTarget: { dataset: { index } } })"></image>
 					<text>{{ item.time }}</text>
 				</block>
-			</view>
+			</view> -->
 
 			<!-- 数据统计展示 -->
 			<view class="abord">
@@ -45,6 +44,7 @@
 </template>
 
 <script setup>
+	import { http } from '../../utils/http'
 	import {
 		ref,
 		onMounted,
@@ -76,7 +76,7 @@
 	let reconnectTimer = ref(null)
 	// 生命周期
 	onMounted(() => {
-		getPicture();
+		// getPicture();
 		initMQTT()
 	})
 	onUnmounted(() => {
@@ -219,29 +219,45 @@
 	const getYolo = () => {
 		isget.value = 1;
 		const jsonDate = {
-			"status": "off",
+			"status": "on",
 		};
-		sendMessage(config.topic, jsonDate);
-
+		// sendMessage(config.topic, jsonDate);
+		// getPicture();
 		fetchData();
+		// console.log(imgList.value[0].url)
 	}
 
 
 	const fetchData = async () => {
 		try {
+			// const res = await http({
+			// 	url: 'http://localhost:8084/wechat/detect',
+			// 	method: 'GET',
+			// 	// data:{
+			// 	// 	image: 'https://img2.bemfa.com/7898026c7e84e1996b226a0adcf69017-gooseZXQuEhdqR0-1745651342.jpg'
+			// 	// }
+			// });
+			const postData = { image: 'https://img2.bemfa.com/7898026c7e84e1996b226a0adcf69017-gooseZXQuEhdqR0-1745651342.jpg' }
 			const res = await uni.request({
-				url: 'http://localhost:8084/wechat/detect',
-				method: 'GET'
-			});
+			        url: 'http://localhost:8084/wechat/detect_goose', // 替换为实际域名
+			        method: 'POST',
+			        header: { 'content-type': 'application/json' },
+			        data: JSON.stringify(postData)
+			      });
 			console.log(res)
 			// 正确获取响应数据
-			ImagePath.value = res.data.imagePath;
-			counts.value = res.data.counts;
+			const result = ref();
+			result.value = JSON.parse(res.data.data)
+			ImagePath.value = result.value.imagePath;
+			counts.value = result.value.counts;
 			isget.value = 0;
+			console.log(result.value)
+			console.log(ImagePath.value)
+			
 
-			ImagePath.value = ImagePath.value.replace('E:\\Git\\yolov5\\runs\\detect', 'http://127.0.0.1:8080/')
+			ImagePath.value = ImagePath.value.replace('E:\\Git\\yolov5\\temp\\', 'http://127.0.0.1:8080/')
 				.replace(/\\/g, '/')
-			ImagePath.value = ImagePath.value + '/微信图片_20250329180726.jpg';
+			ImagePath.value = ImagePath.value + '/7898026c7e84e1996b226a0adcf69017-gooseZXQuEhdqR0-1745651342.jpg';
 			console.log(`sucess get YOLO`)
 			console.log(ImagePath.value)
 
