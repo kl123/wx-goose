@@ -59,6 +59,12 @@
 			}
 		},
 		{
+			"path": "pages/farm/gooseNum",
+			"style": {
+				"navigationBarTitleText": "鹅厂监测"
+			}
+		},
+		{
 			"path": "pages/feed/feed",
 			"style": {
 				"navigationBarTitleText": "鹅监控"
@@ -84,6 +90,7 @@
 			}
 		},
 		{
+
 			"path" : "pages/feed/disease",
 			"style" : 
 			{
@@ -95,6 +102,7 @@
 			"style" : 
 			{
 				"navigationBarTitleText" : "喂水计划"
+
 			}
 		}
 	],
@@ -135,6 +143,12 @@
 				"iconPath": "/static/icon/投喂.png",
 				"selectedIconPath": "/static/icon/投喂.png"
 			}
+			// {
+			// 	"text": "投喂",
+			// 	"pagePath": "pages/chatai/chat",
+			// 	"iconPath": "/static/icon/养殖管理.png",
+			// 	"selectedIconPath": "/static/icon/养殖管理.png"
+			// }
 		]
 	}
 }

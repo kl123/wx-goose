@@ -8,6 +8,9 @@
 			<view v-if="!isLightOn" class="iconfont icon-bulb" @click="offonLight"></view>
 			<view v-if="isLightOn" class="iconfont icon-bulb-full" @click="offonLight"></view>
 		</view>
+		<view class="scan_button" @click="Toscan">
+			<uni-icons type="eye" size="24" color="#333"></uni-icons>
+		</view>
 
 		<!-- 连接状态 -->
 		<view class="status">当前状态：{{ deviceStatus }}</view>
@@ -48,8 +51,7 @@
 				:style="[backgroundStyles[index], { transitionDelay: `${index * 50}ms` }]"
 				:class="{ 'slide-out': isAnimating }" @click="startAnimation(index)">
 				<view class="module-left">
-					<view class="icon-placeholder"
-						:class="isAutoRun() ? 'bluelet' : 'graylet'"></view>
+					<view class="icon-placeholder" :class="isAutoRun() ? 'bluelet' : 'graylet'"></view>
 					<view v-if="item.title !== '智能监控模式'" class="icon-placeholder"
 						:class="findEquipByTitle(item.title)?.isOpen ? 'greenlet' : 'redlet'"></view>
 				</view>
@@ -75,15 +77,25 @@
 				<text v-if="item.isOpen === false">{{item.title}}:未运行</text>
 			</view>
 			<view class="back-btn" @click="resetAnimation">‹ 返回</view>
-			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)" >开启</button>
-			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)">开启</button>
-			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setNum">设置湿度：{{item.value}}</view>
-			<view v-if="item.type === 'set' && item.title !== '智能除氨气'" class="setBtn">
+
+			<button v-if="item.type === 'offon'" class="offOnBtn" @click="offOnEquip(item)"
+				:class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
+			<button v-if="item.type === 'set'" class="setoffOnBtn" @click="offOnEquip(item)"
+				:class="item.isOpen ? 'onBtn':'offBtn'">开关</button>
+			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'" class="setNum">
+				设置温度：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title !== '优化空气' && item.title !== '雾化增湿'" class="setBtn">
+
 				<button @click="upTemp(item)">升温</button>
 				<button @click="downTemp(item)">降温</button>
 			</view>
-			<view v-if="item.type === 'set' && item.title === '智能除氨气'" class="setNum">设置风扇挡位：{{item.value}}</view>
-			<view v-if="item.type === 'set' && item.title === '智能除氨气'" class="setBtn">
+			<view v-if="item.type === 'set' && item.title === '雾化增湿'" class="setNum">设置湿度：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title === '雾化增湿'" class="setBtn">
+				<button @click="upTemp(item)">提升湿度</button>
+				<button @click="downTemp(item)">降低湿度</button>
+			</view>
+			<view v-if="item.type === 'set' && item.title === '优化空气'" class="setNum">设置风扇挡位：{{item.value}}</view>
+			<view v-if="item.type === 'set' && item.title === '优化空气'" class="setBtn">
 				<button @click="upGrade(item)">升档次</button>
 				<button @click="downGrade(item)">降档次</button>
 			</view>
@@ -124,7 +136,7 @@
 					<view class="item">
 						<uni-number-box v-model="thresholds.light.min" :min="0" :max="100"></uni-number-box>
 						<text>至</text>
-						<uni-number-box v-model="thresholds.light.max" :min="0" :max="100"></uni-number-box>
+						<uni-number-box v-model="thresholds.light.max" :min="0" :max="1000"></uni-number-box>
 					</view>
 				</view>
 				<view class="setting-item">
@@ -273,6 +285,7 @@
 
 	// 环境球内容部分
 	// 环境数据
+	// const result = ref()
 	const environmentData = ref([{
 			label: '温度',
 			value: '--',
@@ -289,7 +302,7 @@
 			colorClass: 'energy-ball-normal'
 		},
 		{
-			label: '氨气浓度',
+			label: '空气质量',
 			value: '--',
 			colorClass: 'energy-ball-normal'
 		},
@@ -316,11 +329,11 @@
 		},
 		light: {
 			min: 100,
-			max: 200
+			max: 600
 		},
 		nh3: {
 			min: 300,
-			max: 1000
+			max: 100
 		}
 	});
 
@@ -335,13 +348,17 @@
 	const checkThresholds = (data) => {
 		environmentData.value[0].colorClass = getColorClass(data.temperature, thresholds.value.temperature);
 		environmentData.value[1].colorClass = getColorClass(data.humidity, thresholds.value.humidity);
-		environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.co2);
-		// environmentData.value[3].colorClass = getColorClass(data.co2, thresholds.value.co2);
-		// environmentData.value[4].colorClass = getColorClass(data.co2, thresholds.value.co2);
+		environmentData.value[2].colorClass = getColorClass(data.light_intensity, thresholds.value.light);
+
+		environmentData.value[3].colorClass = 'energy-ball-normal';
+		environmentData.value[4].colorClass = getColorClass(data.co2, thresholds.value.co2);
+
 	};
 
 	// 根据阈值获取颜色
 	const getColorClass = (value, threshold) => {
+		// console.log(value)
+		// console.log(threshold.min,threshold.max)
 		if (value < threshold.min || value > threshold.max) {
 			return 'energy-ball-warning'; // 超出阈值显示红色
 		}
@@ -400,12 +417,72 @@
 		popup.value.open();
 	};
 
+	const Toscan = () => {
+		uni.navigateTo({
+			url: '/pages/farm/gooseNum'
+		});
+	}
+
 	// 保存设置
 	const saveSettings = () => {
 		popup.value.close();
+		saveSetting2java();
 		// 保存后重新检查阈值
 		checkThresholds(mockData);
 	};
+
+	const saveSetting2java = async () => {
+		try {
+			// const postData = JSON.parse(thresholds.value)
+			const res = await uni.request({
+				url: 'http://localhost:8084/wechat/BaFa/updateThreshold', // 替换为实际域名
+				method: 'POST',
+				header: {
+					'content-type': 'application/json'
+				},
+				data: JSON.stringify(thresholds.value)
+			});
+		} catch (err) {
+			uni.showToast({
+				title: '数据加载失败',
+				icon: 'none'
+			});
+			console.error('请求异常:', err);
+		}
+	}
+	
+	const getsetting = async () => {
+		try {
+			// const postData = JSON.parse(thresholds.value)
+			const res = await uni.request({
+				url: 'http://localhost:8084/wechat/BaFa/getThreshold', // 替换为实际域名
+				method: 'GET',
+				header: {
+					'content-type': 'application/json'
+				},
+			});
+			const result = res.data.data
+			console.log(result)
+			thresholds.value.temperature.min = result.minTem
+			thresholds.value.temperature.max = result.maxTem
+			thresholds.value.humidity.min = result.minHum
+			thresholds.value.humidity.max = result.maxHum
+			thresholds.value.co2.min = result.minCo2
+			thresholds.value.co2.max = result.maxCo2
+			thresholds.value.light.min = result.minSun
+			thresholds.value.light.max = result.maxSun
+			thresholds.value.nh3.min = result.minAir
+			thresholds.value.nh3.max = result.maxAir
+			
+			
+		} catch (err) {
+			uni.showToast({
+				title: '数据加载失败',
+				icon: 'none'
+			});
+			console.error('请求异常:', err);
+		}
+	}
 
 	//手动操作提示词
 	const breathText = {
@@ -440,13 +517,20 @@
 
 	// 生命周期
 	onMounted(() => {
+		getsetting()
 		initMQTT()
 	})
 
 	onUnmounted(() => {
 		disconnectMQTT()
 	})
-
+	const mockData = {
+		temperature: 25, // 温度
+		humidity: 55, // 湿度
+		co2: 800, // CO2浓度
+		light_intensity: 100,
+		airQuality: 100
+	};
 	// MQTT初始化_________________________________________________________________________________
 	const initMQTT = () => {
 		client.value = mqtt.connect(config.url, config.options)
@@ -467,6 +551,16 @@
 			environmentData.value[0].value = `${result.temperature}°C`;
 			environmentData.value[1].value = `${result.humidity}%`;
 			environmentData.value[2].value = `${result.light_intensity}lx`;
+			environmentData.value[3].value = `${result.airQuality}`
+
+			environmentData.value[4].value = `${result.co2}ppm`
+
+			mockData.temperature = result.temperature;
+			mockData.humidity = result.humidity;
+			mockData.light_intensity = result.light_intensity;
+			mockData.airQuality = result.airQuality;
+			mockData.co2 = result.co2;
+
 			// updateTime.value = new Date().toLocaleString()
 			checkThresholds(result);
 			// console.log('收到数据:', result.value)
@@ -544,7 +638,7 @@
 
 	// 洒水器状态
 	const equip = ref([{
-			title: '智能除氨气',
+			title: '优化空气',
 			isOpen: false,
 			type: 'set',
 			value: 1,
@@ -571,7 +665,7 @@
 			topicname: config.tempTopic
 		},
 		{
-			title: '雾化降温',
+			title: '雾化增湿',
 			isOpen: false,
 			value: 25,
 			type: 'set',
@@ -595,9 +689,36 @@
 	const toggleMode = (event, index) => {
 		const newValue = event.detail.value;
 		modules.value[index].value = newValue;
-		isAutoMode.value = newValue; 
+		isAutoMode.value = newValue;
+		const isauto = newValue ? true : false;
+		console.log(`The auto act is ${isauto}`)
+		autoact(isauto)
+
 
 	};
+
+	const autoact = async (isauto) => {
+		try {
+			const postData = {
+				auto: isauto
+			}
+			console.log(`The post json is:${postData}`)
+			const res = await uni.request({
+				url: 'http://localhost:8084/wechat/BaFa/reviseAuto', // 替换为实际域名
+				method: 'POST',
+				header: {
+					'content-type': 'application/json'
+				},
+				data: JSON.stringify(postData)
+			});
+		} catch (err) {
+			uni.showToast({
+				title: '数据加载失败',
+				icon: 'none'
+			});
+			console.error('请求异常:', err);
+		}
+	}
 
 	// 切换洒水器状态
 	const toggleSprinkler = () => {
@@ -620,7 +741,7 @@
 			value: true
 		},
 		{
-			title: '智能除氨气',
+			title: '优化空气',
 			type: 'arrow'
 		},
 		{
@@ -632,7 +753,7 @@
 			type: 'arrow'
 		},
 		{
-			title: '雾化降温',
+			title: '雾化增湿',
 			type: 'arrow'
 		}
 	]);
@@ -708,18 +829,18 @@
 		// }
 		// equip.value[eqindex].isOpen = !equip.value[eqindex].isOpen;
 		item.isOpen = !item.isOpen;
-		if(item.type === 'set'){
+		if (item.type === 'set') {
 			console.log(`可以发送消息`)
 			const jsonDate = {
 				"status": item.isOpen ? "on" : "off",
 				"grade": item.value
 			};
 			sendMessage(item.topicname, jsonDate);
-		}else if(item.type === 'offon'){
+		} else if (item.type === 'offon') {
 			console.log(`可以发送消息`)
 			const jsonDate = {
 				"status": item.isOpen ? "on" : "off",
-				
+
 			};
 			sendMessage(item.topicname, jsonDate);
 		}
@@ -754,7 +875,7 @@
 	}
 
 	const upGrade = (item) => {
-		if(item.value >= 4){
+		if (item.value >= 4) {
 			uni.showToast({
 				title: '已到最高档位',
 				icon: 'none',
@@ -774,9 +895,9 @@
 		}
 		console.log(`点击了${item.title}的升温`)
 	}
-	
+
 	const downGrade = (item) => {
-		if(item.value <= 1){
+		if (item.value <= 1) {
 			uni.showToast({
 				title: '已到最低档位',
 				icon: 'none',
@@ -795,7 +916,7 @@
 		}
 		console.log(`点击了${item.title}的降温`)
 	}
-	
+
 	const isAutoRun = () => {
 		return modules.value[0].value;
 	}
@@ -830,9 +951,9 @@
 		isAnimating.value = false;
 		showActions.value = false;
 	}
-	
+
 	const isLightOn = ref(false)
-	const offonLight = () =>{
+	const offonLight = () => {
 		isLightOn.value = !isLightOn.value;
 		const jsonDate = {
 			"light_btn": isLightOn.value ? "on" : "off",
@@ -864,7 +985,15 @@
 		left: 20px;
 		z-index: 10;
 	}
-	.lightBtn{
+
+	.scan_button {
+		position: absolute;
+		top: 20px;
+		left: 70px;
+		z-index: 10;
+	}
+
+	.lightBtn {
 		position: absolute;
 		top: 20px;
 		right: 20px;
@@ -1187,91 +1316,107 @@
 			color: #66BB6A
 		}
 	}
-	
+
 	.ctr-title {
-	  position: absolute;
-	  top: 80rpx; /* 留出返回按钮空间 */
-	  left: 50%;
-	  transform: translateX(-50%);
-	  font-size: 36rpx;
-	  color: #333;
-	  width: 100%;
-	  text-align: center;
+		position: absolute;
+		top: 80rpx;
+		/* 留出返回按钮空间 */
+		left: 50%;
+		transform: translateX(-50%);
+		font-size: 36rpx;
+		color: #333;
+		width: 100%;
+		text-align: center;
 	}
-	
+
 	/* 通用圆形按钮样式 */
-	.offOnBtn, .setoffOnBtn {
-	  position: absolute;
-	  left: 50%;
-	  transform: translateX(-50%);
-	  width: 150rpx;
-	  height: 150rpx;
-	  border-radius: 50%;
-	  background: #66BB6A;
-	  color: white;
-	  font-size: 36rpx;
-	  display: flex;
-	  align-items: center;
-	  justify-content: center;
-	  box-shadow: 0 8rpx 16rpx rgba(102,187,106,0.3);
+	.offOnBtn,
+	.setoffOnBtn {
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 150rpx;
+		height: 150rpx;
+		border-radius: 50%;
+		background: #66BB6A;
+		color: white;
+		font-size: 36rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 8rpx 16rpx rgba(102, 187, 106, 0.3);
 	}
-	
+
+	.onBtn {
+		background: #66BB6A;
+	}
+
+	.offBtn {
+		background: #FF5252;
+	}
+
 	/* 主开关按钮垂直居中 */
 	.offOnBtn {
-	  top: 50%;
-	  transform: translate(-50%, -50%);
+		top: 50%;
+		transform: translate(-50%, -50%);
 	}
-	
+
 	/* 设置数值显示 - 在标题下方 */
 	.setNum {
-	  position: absolute;
-	  top: 180rpx; /* 在标题下方留出间距 */
-	  left: 50%;
-	  transform: translateX(-50%);
-	  font-size: 32rpx;
-	  color: #666;
-	  text-align: center;
+		position: absolute;
+		top: 180rpx;
+		/* 在标题下方留出间距 */
+		left: 50%;
+		transform: translateX(-50%);
+		font-size: 32rpx;
+		color: #666;
+		text-align: center;
 	}
-	.setNum text { /* 突出显示数值 */
-	  font-size: 64rpx;
-	  color: #333;
-	  display: block;
-	  margin-top: 16rpx;
+
+	.setNum text {
+		/* 突出显示数值 */
+		font-size: 64rpx;
+		color: #333;
+		display: block;
+		margin-top: 16rpx;
 	}
-	
+
 	/* 设置模式开关按钮位置 */
 	.setoffOnBtn {
-	  top: 360rpx; /* 在数值显示下方 */
+		top: 360rpx;
+		/* 在数值显示下方 */
 	}
-	
+
 	/* 温度/档位控制按钮容器 */
 	.setBtn {
-	  position: absolute;
-	  bottom: 80rpx;
-	  left: 50%;
-	  transform: translateX(-50%);
-	  width: 80%;
-	  display: flex;
-	  justify-content: space-between;
+		position: absolute;
+		bottom: 80rpx;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 80%;
+		display: flex;
+		justify-content: space-between;
 	}
+
 	.setBtn button {
-	  width: 200rpx;
-	  height: 80rpx;
-	  border-radius: 40rpx;
-	  background: #f5f5f5;
-	  color: #666;
-	  font-size: 32rpx;
-	  transition: all 0.2s;
+		width: 200rpx;
+		height: 80rpx;
+		border-radius: 40rpx;
+		background: #f5f5f5;
+		color: #666;
+		font-size: 32rpx;
+		transition: all 0.2s;
 	}
+
 	.setBtn button:active {
-	  background: #eee;
+		background: #eee;
 	}
-	
+
 	.iconfont {
-	  font-family: "iconfont" !important;
-	  font-size: 22px;
-	  font-style: normal;
-	  -webkit-font-smoothing: antialiased;
-	  -moz-osx-font-smoothing: grayscale;
+		font-family: "iconfont" !important;
+		font-size: 22px;
+		font-style: normal;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
 	}
 </style>
