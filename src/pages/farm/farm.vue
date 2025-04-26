@@ -331,7 +331,7 @@
 		},
 		nh3: {
 			min: 300,
-			max: 1000
+			max: 100
 		}
 	});
 
@@ -424,9 +424,63 @@
 	// 保存设置
 	const saveSettings = () => {
 		popup.value.close();
+		saveSetting2java();
 		// 保存后重新检查阈值
 		checkThresholds(mockData);
 	};
+
+	const saveSetting2java = async () => {
+		try {
+			// const postData = JSON.parse(thresholds.value)
+			const res = await uni.request({
+				url: 'http://localhost:8084/wechat/BaFa/updateThreshold', // 替换为实际域名
+				method: 'POST',
+				header: {
+					'content-type': 'application/json'
+				},
+				data: JSON.stringify(thresholds.value)
+			});
+		} catch (err) {
+			uni.showToast({
+				title: '数据加载失败',
+				icon: 'none'
+			});
+			console.error('请求异常:', err);
+		}
+	}
+	
+	const getsetting = async () => {
+		try {
+			// const postData = JSON.parse(thresholds.value)
+			const res = await uni.request({
+				url: 'http://localhost:8084/wechat/BaFa/getThreshold', // 替换为实际域名
+				method: 'GET',
+				header: {
+					'content-type': 'application/json'
+				},
+			});
+			const result = res.data.data
+			console.log(result)
+			thresholds.value.temperature.min = result.minTem
+			thresholds.value.temperature.max = result.maxTem
+			thresholds.value.humidity.min = result.minHum
+			thresholds.value.humidity.max = result.maxHum
+			thresholds.value.co2.min = result.minCo2
+			thresholds.value.co2.max = result.maxCo2
+			thresholds.value.light.min = result.minSun
+			thresholds.value.light.max = result.maxSun
+			thresholds.value.nh3.min = result.minAir
+			thresholds.value.nh3.max = result.maxAir
+			
+			
+		} catch (err) {
+			uni.showToast({
+				title: '数据加载失败',
+				icon: 'none'
+			});
+			console.error('请求异常:', err);
+		}
+	}
 
 	//手动操作提示词
 	const breathText = {
@@ -461,6 +515,7 @@
 
 	// 生命周期
 	onMounted(() => {
+		getsetting()
 		initMQTT()
 	})
 
@@ -636,25 +691,25 @@
 		const isauto = newValue ? true : false;
 		console.log(`The auto act is ${isauto}`)
 		autoact(isauto)
-		
-		
+
+
 	};
-	
+
 	const autoact = async (isauto) => {
-		try{
+		try {
 			const postData = {
 				auto: isauto
 			}
 			console.log(`The post json is:${postData}`)
 			const res = await uni.request({
-			url: 'http://localhost:8084/wechat/BaFa/reviseAuto', // 替换为实际域名
-			method: 'POST',
-			header: {
-				'content-type': 'application/json'
-			},
-			data: JSON.stringify(postData)
-		});
-		}catch(err) {
+				url: 'http://localhost:8084/wechat/BaFa/reviseAuto', // 替换为实际域名
+				method: 'POST',
+				header: {
+					'content-type': 'application/json'
+				},
+				data: JSON.stringify(postData)
+			});
+		} catch (err) {
 			uni.showToast({
 				title: '数据加载失败',
 				icon: 'none'
