@@ -1,60 +1,68 @@
 <template>
   <view class="plan-container">
+    <!-- 头部标题 -->
     <view class="header">
-      <text class="title">喂食计划</text>
-      <text class="subtitle">设置您的自动喂食时间和份量</text>
+      <text class="title">喂食计划设置</text>
+      <text class="subtitle">自定义您的自动喂食时间和份量</text>
     </view>
 
-    <view class="time-slots-container">
-      <view class="time-slot-card" v-for="(slot, index) in timeSlots" :key="index">
-        <view class="time-section">
-          <text class="time-label">时间</text>
-          <picker mode="time" :value="slot.time" @change="(e) => timeChange(index, e)">
-            <view class="time-picker">
-              <text class="time-value">{{ slot.time }}</text>
-              <uni-icons type="arrowdown" size="16" color="#666"></uni-icons>
-            </view>
-          </picker>
-        </view>
-
-        <view class="amount-section">
-          <text class="amount-label">份量</text>
-          <view class="amount-control">
-            <button class="control-btn minus" @click="decrement(index)" :disabled="slot.amount <= 0">
-              <uni-icons type="minus" size="16" color="#fff"></uni-icons>
-            </button>
-            <text class="amount-value">{{ slot.amount }}g</text>
-            <button class="control-btn plus" @click="increment(index)">
-              <uni-icons type="plus" size="16" color="#fff"></uni-icons>
-            </button>
-          </view>
-        </view>
-
-        <button class="delete-btn" @click="removeTimeSlot(index)" v-if="timeSlots.length > 1">
-          <uni-icons type="trash" size="18" color="#ff4d4f"></uni-icons>
-        </button>
+    <!-- 添加时间区域 -->
+    <view class="add-time-container">
+      <view class="input-container">
+        <uni-icons type="clock" size="20" color="#666" class="input-icon"></uni-icons>
+        <input 
+          v-model="newTime" 
+          type="text" 
+          placeholder="输入时间 (HH:mm)" 
+          class="time-input"
+          maxlength="5"
+        />
       </view>
-
-      <button class="add-btn" @click="addTimeSlot">
-        <uni-icons type="plusempty" size="20" color="#4a90e2"></uni-icons>
-        <text>添加喂食时间</text>
+      <button class="add-button" @click="addTimeSlot">
+        <uni-icons type="plus" size="16" color="#fff"></uni-icons>
+        <text>添加</text>
       </button>
     </view>
 
-    <view class="summary-card">
-      <text class="summary-title">今日喂食计划</text>
-      <view class="summary-item">
-        <text>总喂食次数</text>
-        <text class="highlight">{{ timeSlots.filter(s => s.amount > 0).length }}次</text>
-      </view>
-      <view class="summary-item">
-        <text>总喂食量</text>
-        <text class="highlight">{{ totalAmount }}g</text>
+    <!-- 时间点列表 -->
+    <view class="time-list">
+      <view class="time-item" v-for="(time, index) in timeSlots" :key="index">
+        <view class="time-info">
+          <uni-icons type="clock" size="18" color="#4a90e2"></uni-icons>
+          <text class="time-text">{{ time }}</text>
+        </view>
+        
+        <view class="amount-control">
+          <button class="control-btn minus" @click="decrement(index)" :disabled="mealAmounts[index] <= 0">
+            <uni-icons type="minus" size="14" color="#fff"></uni-icons>
+          </button>
+          <text class="amount">{{ mealAmounts[index] }}g</text>
+          <button class="control-btn plus" @click="increment(index)">
+            <uni-icons type="plus" size="14" color="#fff"></uni-icons>
+          </button>
+        </view>
+        
+        <button class="delete-btn" @click="deleteTimeSlot(index)" v-if="timeSlots.length > 1">
+          <uni-icons type="trash" size="16" color="#ff4d4f"></uni-icons>
+        </button>
       </view>
     </view>
 
-    <button class="save-btn" @click="savePlan" :disabled="isSaving">
-      <text>{{ isSaving ? '保存中...' : '保存喂食计划' }}</text>
+    <!-- 统计信息 -->
+    <view class="stats-card">
+      <view class="stat-item">
+        <text>时间点数量</text>
+        <text class="stat-value">{{ timeSlots.length }}个</text>
+      </view>
+      <view class="stat-item">
+        <text>总喂食量</text>
+        <text class="stat-value">{{ totalAmount }}g</text>
+      </view>
+    </view>
+
+    <!-- 保存按钮 -->
+    <button class="save-btn" @click="savePlan">
+      <text>保存喂食计划</text>
     </button>
   </view>
 </template>
@@ -63,293 +71,132 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 
-// 初始数据
-const initialTimeSlots = [
-  { time: '08:00', amount: 100 },
-  { time: '12:00', amount: 100 },
-  { time: '18:00', amount: 100 }
-]
-
-const timeSlots = ref([...initialTimeSlots])
-const openID = ref('6fc94297b1a4771e713523fd16d19702')
-const topicID = ref('food')
-const deviceType = 1
-const isSaving = ref(false)
+const timeSlots = ref(['06:00', '12:00', '18:00'])
+const mealAmounts = ref([100, 100, 100])
+const newTime = ref('')
 
 // 计算总出粮份数
 const totalAmount = computed(() => {
-  return timeSlots.value.reduce((sum, slot) => sum + (parseInt(slot.amount) || 0), 0)
+  return mealAmounts.value.reduce((sum, amount) => sum + (parseInt(amount) || 0), 0)
 })
 
-// 加载保存的数据
-const loadSavedData = async () => {
-  try {
-    const savedSlots = uni.getStorageSync('timeSlots')
-    if (savedSlots?.length) {
-      timeSlots.value = savedSlots
-    }
-    openID.value = uni.getStorageSync('openID') || '6fc94297b1a4771e713523fd16d19702'
-    console.log('加载后的 openID:', openID.value)
-    if (!openID.value) {
-      uni.showToast({
-        title: '未找到用户ID，请重新登录',
-        icon: 'none'
-      })
-      uni.navigateTo({
-        url: '/pages/login/login' // 替换为实际的登录页面路径
-      })
-    }
-  } catch (error) {
-    console.error('加载数据出错:', error)
-    uni.showToast({
-      title: '加载数据失败',
-      icon: 'none'
-    })
-  }
+// 验证时间格式
+const isValidTime = (time) => {
+  const regex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/
+  return regex.test(time)
 }
 
-// 添加时间槽
+// 添加时间点
 const addTimeSlot = () => {
-  const lastTime = timeSlots.value[timeSlots.value.length - 1].time
-  const [hours, minutes] = lastTime.split(':').map(Number)
-  const newHours = (hours + 2) % 24
-  const newTime = `${newHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+  if (!newTime.value) {
+    uni.showToast({ title: '请输入时间', icon: 'none' })
+    return
+  }
+
+  if (!isValidTime(newTime.value)) {
+    uni.showToast({ title: '请输入正确的时间格式 (HH:mm)', icon: 'none' })
+    return
+  }
+
+  if (timeSlots.value.includes(newTime.value)) {
+    uni.showToast({ title: '该时间点已存在', icon: 'none' })
+    return
+  }
+
+  timeSlots.value.push(newTime.value)
+  mealAmounts.value.push(100)
+  sortTimeSlots()
+  newTime.value = ''
+  uni.showToast({ title: '时间点添加成功', icon: 'success' })
+}
+
+// 删除时间点
+const deleteTimeSlot = (index) => {
+  if (timeSlots.value.length <= 1) {
+    uni.showToast({ title: '至少保留一个时间点', icon: 'none' })
+    return
+  }
   
-  timeSlots.value.push({
-    time: newTime,
-    amount: 100
+  uni.showModal({
+    title: '确认删除',
+    content: `确定要删除 ${timeSlots.value[index]} 的喂食计划吗？`,
+    success: (res) => {
+      if (res.confirm) {
+        timeSlots.value.splice(index, 1)
+        mealAmounts.value.splice(index, 1)
+        uni.showToast({ title: '时间点已删除', icon: 'success' })
+      }
+    }
   })
 }
 
-// 删除时间槽
-const removeTimeSlot = (index) => {
-  if (timeSlots.value.length > 1) {
-    timeSlots.value.splice(index, 1)
-  }
+// 按时间排序
+const sortTimeSlots = () => {
+  const combined = timeSlots.value.map((time, index) => ({
+    time,
+    amount: mealAmounts.value[index]
+  }))
+  
+  combined.sort((a, b) => {
+    const [aHour, aMin] = a.time.split(':').map(Number)
+    const [bHour, bMin] = b.time.split(':').map(Number)
+    return aHour * 60 + aMin - (bHour * 60 + bMin)
+  })
+  
+  timeSlots.value = combined.map(item => item.time)
+  mealAmounts.value = combined.map(item => item.amount)
 }
 
-// 时间选择变化
-const timeChange = (index, e) => {
-  timeSlots.value[index].time = e.detail.value
-}
-
-// 增加数量
+// 增加份量
 const increment = (index) => {
-  timeSlots.value[index].amount = (parseInt(timeSlots.value[index].amount) || 0) + 100
+  mealAmounts.value[index] = (parseInt(mealAmounts.value[index]) || 0) + 100
 }
 
-// 减少数量
+// 减少份量
 const decrement = (index) => {
-  const current = parseInt(timeSlots.value[index].amount) || 0
-  if (current > 0) {
-    timeSlots.value[index].amount = current - 100
-  }
+  const current = parseInt(mealAmounts.value[index]) || 0
+  mealAmounts.value[index] = current > 0 ? current - 100 : 0
 }
 
-// 添加定时任务
-const addTimingTask = async (time, amount) => {
-  if (!amount || amount <= 0) return false
-
-  const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/
-  if (!timeRegex.test(time)) {
-    console.error(`无效的时间格式: ${time}`)
-    uni.showToast({
-      title: '时间格式错误',
-      icon: 'none'
-    })
-    return false
-  }
-
-  try {
-    const requestData = {
-      openID: openID.value,
-      topicID: topicID.value,
-      time: `${time}:00`,
-      type: deviceType,
-      msg: `feed#${amount}`,
-      week: [0, 1, 2, 3, 4, 5, 6]
-    }
-    console.log('发送请求:', requestData)
-
-    const response = await uni.request({
-      url: 'https://apis.bemfa.com/vb/delay/v1/addTime',
-      method: 'POST',
-      data: requestData,
-      header: {
-        'Content-Type': 'application/json; charset=utf-8'
-      }
-    })
-
-    console.log('API 响应:', response)
-
-    if (!response.data) {
-      console.error('API 响应为空:', response)
-      return false
-    }
-
-    if (response.data.code !== 0) {
-      console.error(`添加定时任务失败: ${response.data.msg || '未知错误'}`)
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error(`添加定时任务出错 (时间: ${time}, 份量: ${amount}):`, error)
-    return false
-  }
-}
-
-// 清除旧的定时任务
-const clearOldTimingTasks = async () => {
-  try {
-    const response = await uni.request({
-      url: `https://apis.bemfa.com/vb/delay/v1/timeList?openID=${openID.value}&topicID=${topicID.value}&type=${deviceType}`,
-      method: 'GET'
-    })
-
-    console.log('获取定时任务列表响应:', response)
-
-    if (!response.data || response.data.code !== 0) {
-      console.error('获取定时任务列表失败:', response.data?.msg || '未知错误')
-      return
-    }
-
-    const tasks = response.data.data?.data || []
-    for (const task of tasks) {
-      await deleteTimingTask(task.id)
-    }
-  } catch (error) {
-    console.error('清除定时任务出错:', error)
-  }
-}
-
-// 删除定时任务
-const deleteTimingTask = async (id) => {
-  try {
-    const response = await uni.request({
-      url: 'https://apis.bemfa.com/vb/delay/v1/deleteTime',
-      method: 'POST',
-      data: {
-        openID: openID.value,
-        topicID: topicID.value,
-        type: deviceType,
-        id: id
-      },
-      header: {
-        'Content-Type': 'application/json; charset=utf-8'
-      }
-    })
-
-    console.log('删除定时任务响应:', response)
-
-    if (!response.data || response.data.code !== 0) {
-      console.error(`删除定时任务失败 (ID: ${id}):`, response.data?.msg || '未知错误')
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error(`删除定时任务出错 (ID: ${id}):`, error)
-    return false
+// 加载保存的数据
+const loadSavedData = () => {
+  const savedTimes = uni.getStorageSync('timeSlots')
+  const savedAmounts = uni.getStorageSync('mealAmounts')
+  if (savedTimes && savedAmounts && savedTimes.length === savedAmounts.length) {
+    timeSlots.value = savedTimes
+    mealAmounts.value = savedAmounts.map(amount => parseInt(amount) || 0)
   }
 }
 
 // 保存计划
-const savePlan = async () => {
-  if (!openID.value) {
-    console.error('保存失败：openID 为空')
-    uni.showToast({
-      title: '请先登录',
-      icon: 'none'
-    })
-    uni.navigateTo({
-      url: '/pages/login/login' // 替换为实际的登录页面路径
-    })
-    return
-  }
-
-  if (!topicID.value || deviceType !== 1) {
-    console.error('保存失败：无效的 topicID 或 deviceType', { topicID: topicID.value, deviceType })
-    uni.showToast({
-      title: '设备配置错误',
-      icon: 'none'
-    })
-    return
-  }
-
-  // 验证输入
-  const invalidSlot = timeSlots.value.find((slot) => {
-    const num = parseInt(slot.amount) || 0
-    return num < 0 || num % 100 !== 0
+const savePlan = () => {
+  const invalidIndex = mealAmounts.value.findIndex(amount => {
+    const num = parseInt(amount) || 0
+    return num < 0
   })
 
-  if (invalidSlot) {
+  if (invalidIndex !== -1) {
     uni.showToast({
-      title: '喂食量必须为100的整数倍且不能为负数',
+      title: `时间点${timeSlots.value[invalidIndex]}的数值不能为负数`,
       icon: 'none'
     })
     return
   }
 
-  // 检查时间重复和格式
-  const timeSet = new Set()
-  const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/
-  for (const slot of timeSlots.value) {
-    if (!timeRegex.test(slot.time)) {
-      uni.showToast({
-        title: `时间 ${slot.time} 格式错误`,
-        icon: 'none'
-      })
-      return
-    }
-    if (timeSet.has(slot.time)) {
-      uni.showToast({
-        title: `时间 ${slot.time} 重复了`,
-        icon: 'none'
-      })
-      return
-    }
-    timeSet.add(slot.time)
-  }
+  uni.setStorageSync('timeSlots', timeSlots.value)
+  uni.setStorageSync('mealAmounts', mealAmounts.value)
+  uni.setStorageSync('plannedAmount', totalAmount.value)
 
-  isSaving.value = true
-
-  try {
-    // 清除旧的定时任务
-    await clearOldTimingTasks()
-
-    // 串行添加新的定时任务
-    for (const slot of timeSlots.value.filter((s) => s.amount > 0)) {
-      const success = await addTimingTask(slot.time, slot.amount)
-      if (!success) {
-        throw new Error(`添加定时任务失败: ${slot.time}`)
-      }
-    }
-
-    // 本地存储
-    uni.setStorageSync('timeSlots', timeSlots.value)
-    uni.setStorageSync('plannedAmount', totalAmount.value)
-
-    uni.showToast({
-      title: '喂食计划已保存',
-      icon: 'success'
-    })
-
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 1500)
-  } catch (error) {
-    console.error('保存计划出错:', error)
-    uni.showToast({
-      title: '保存失败，请重试',
-      icon: 'none'
-    })
-  } finally {
-    isSaving.value = false
-  }
+  uni.showToast({
+    title: '喂食计划已保存',
+    icon: 'success'
+  })
+  
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 1500)
 }
 
-// 页面加载
 onLoad(() => {
   loadSavedData()
 })
@@ -357,7 +204,7 @@ onLoad(() => {
 
 <style lang="scss" scoped>
 .plan-container {
-  padding: 20px;
+  padding: 24px;
   background-color: #f8f9fa;
   min-height: 100vh;
 }
@@ -380,68 +227,96 @@ onLoad(() => {
   }
 }
 
-.time-slots-container {
-  margin-bottom: 24px;
-}
-
-.time-slot-card {
-  background-color: #fff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
+.add-time-container {
   display: flex;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  position: relative;
+  margin-bottom: 20px;
+  gap: 10px;
   
-  .time-section {
+  .input-container {
     flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
     
-    .time-label {
-      font-size: 12px;
-      color: #999;
-      display: block;
-      margin-bottom: 4px;
+    .input-icon {
+      position: absolute;
+      left: 12px;
+      z-index: 1;
     }
     
-    .time-picker {
-      display: flex;
-      align-items: center;
+    .time-input {
+      flex: 1;
+      height: 44px;
+      padding: 0 16px 0 40px;
+      background-color: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 15px;
       
-      .time-value {
-        font-size: 18px;
-        font-weight: 500;
-        color: #333;
-        margin-right: 6px;
+      &:focus {
+        border-color: #4a90e2;
       }
     }
   }
   
-  .amount-section {
-    flex: 1;
+  .add-button {
+    width: 80px;
+    height: 44px;
+    background-color: #4a90e2;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+}
+
+.time-list {
+  margin-bottom: 24px;
+  
+  .time-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background-color: #fff;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
     
-    .amount-label {
-      font-size: 12px;
-      color: #999;
-      display: block;
-      margin-bottom: 4px;
-      text-align: right;
+    .time-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      
+      .time-text {
+        font-size: 16px;
+        font-weight: 500;
+        color: #333;
+        min-width: 60px;
+      }
     }
     
     .amount-control {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      gap: 8px;
+      margin-left: auto;
+      padding-right: 12px;
       
       .control-btn {
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         display: flex;
-        justify-content: center;
         align-items: center;
+        justify-content: center;
         padding: 0;
-        margin: 0;
         
         &.minus {
           background-color: #ff4d4f;
@@ -456,93 +331,66 @@ onLoad(() => {
         }
       }
       
-      .amount-value {
-        font-size: 16px;
-        font-weight: 500;
-        margin: 0 12px;
+      .amount {
         min-width: 60px;
         text-align: center;
+        font-size: 15px;
+        font-weight: 500;
       }
     }
-  }
-  
-  .delete-btn {
-    position: absolute;
-    right: -8px;
-    top: -8px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: #fff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    
+    .delete-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 1px solid #ff4d4f;
+      margin-left: 8px;
+    }
   }
 }
 
-.add-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 12px;
-  background-color: #fff;
-  border: 1px dashed #4a90e2;
-  border-radius: 12px;
-  color: #4a90e2;
-  font-size: 14px;
-  
-  text {
-    margin-left: 6px;
-  }
-}
-
-.summary-card {
+.stats-card {
   background-color: #fff;
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   
-  .summary-title {
-    font-size: 16px;
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 12px;
-    display: block;
-  }
-  
-  .summary-item {
+  .stat-item {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 8px;
-    font-size: 14px;
-    color: #666;
+    padding: 8px 0;
     
-    .highlight {
-      color: #4a90e2;
-      font-weight: 500;
+    &:not(:last-child) {
+      border-bottom: 1px solid #f0f0f0;
     }
     
-    &:last-child {
-      margin-bottom: 0;
+    .stat-value {
+      font-weight: 500;
+      color: #4a90e2;
     }
   }
 }
 
 .save-btn {
   width: 100%;
-  padding: 14px;
+  height: 48px;
   background-color: #4a90e2;
-  border-radius: 12px;
+  border-radius: 8px;
   color: #fff;
   font-size: 16px;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
-  &[disabled] {
-    opacity: 0.7;
+  &:active {
+    background-color: #3a7bc8;
   }
 }
 </style>
