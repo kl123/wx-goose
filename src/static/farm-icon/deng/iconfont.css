@@ -1,0 +1,25 @@
+@font-face {
+  font-family: "iconfont"; /* Project id  */
+  src: url('~@/static/farm-icon/deng/iconfont.ttf?t=1742200151294') format('truetype');
+}
+
+.iconfont {
+  font-family: "iconfont" !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-deng:before {
+  content: "\e769";
+}
+
+.icon-bulb:before {
+  content: "\e856";
+}
+
+.icon-bulb-full:before {
+  content: "\e857";
+}
+

@@ -1,0 +1,160 @@
+{
+	//组件自动引入规则
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			// uni-ui 规则如下配置
+			"^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+		}
+	},
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		// {
+		// 	"path": "pages/login/login",
+		// 	"style": {
+		// 		"navigationBarTitleText": "登录"
+		// 	}
+		// },
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "主页"
+			}
+		},
+		{
+			"path": "pages/my/my",
+			"style": {
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/farm/farm",
+			"style": {
+				"navigationBarTitleText": "养殖管理"
+			}
+		},
+		{
+			"path": "pages/farm/new_file",
+			"style": {
+				"navigationBarTitleText": "养殖管理测试"
+			}
+		},
+		{
+			"path": "pages/goods/goods",
+			"style": {
+				"navigationBarTitleText": "商品详情"
+			}
+		},
+		{
+			"path": "pages/scan/scanpage",
+			"style": {
+				"navigationBarTitleText": "测量体重"
+			}
+		},
+		{
+			"path": "pages/scan/weigh",
+			"style": {
+				"navigationBarTitleText": "测量体重-体重秤"
+			}
+		},
+		{
+			"path": "pages/farm/gooseNum",
+			"style": {
+				"navigationBarTitleText": "鹅厂监测"
+			}
+		},
+		{
+			"path": "pages/feed/feed",
+			"style": {
+				"navigationBarTitleText": "饮食监控"
+			}
+		},
+		{
+			"path": "pages/feed/feedWater",
+			"style": {
+				"navigationBarTitleText": "喂水"
+			}
+		},
+		{
+			"path": "pages/feed/feedFood",
+			"style": {
+				"navigationBarTitleText": "喂食"
+			}
+		},
+		{
+			"path": "pages/planFood/planFood",
+			"style": {
+				"navigationBarTitleText": "喂食计划"
+			}
+		},
+		{
+			"path": "pages/feed/disease",
+			"style": {
+				"navigationBarTitleText": "疾病记录"
+			}
+		},
+		{
+			"path": "pages/planWater/planWater",
+			"style": {
+				"navigationBarTitleText": "喂水计划"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-app",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	},
+	//设置tabBar
+	"tabBar": {
+		"color": "#7A7E83",
+		"selectedColor": "#3cc51f",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"text": "主页",
+				"pagePath": "pages/index/index",
+				"iconPath": "/static/icon/主页.png",
+				"selectedIconPath": "/static/icon/主页.png"
+			},
+			{
+				"text": "识别",
+				"pagePath": "pages/scan/scanpage",
+				"iconPath": "/static/icon/扫一扫.png",
+				"selectedIconPath": "/static/icon/扫一扫.png"
+			},
+			{
+				"text": "养殖管理",
+				"pagePath": "pages/farm/farm",
+				"iconPath": "/static/icon/养殖管理.png",
+				"selectedIconPath": "/static/icon/养殖管理.png"
+			},
+			{
+				"text": "饮食监控",
+				"pagePath": "pages/feed/feed",
+				"iconPath": "/static/icon/投喂.png",
+				"selectedIconPath": "/static/icon/投喂.png"
+			}
+			// {
+			// 	"text": "投喂",
+			// 	"pagePath": "pages/chatai/chat",
+			// 	"iconPath": "/static/icon/养殖管理.png",
+			// 	"selectedIconPath": "/static/icon/养殖管理.png"
+			// }
+		]
+	},
+	"subPackages": [
+		{
+			"root": "pages",
+			"pages": [
+				{
+					"path": "you",
+					"style": {
+						"navigationBarTitleText": "你的"
+					}
+				}
+			]
+		}
+	]
+}
